@@ -29,6 +29,7 @@ namespace DVDThread
 {
 
 static void DVDThread();
+static bool ReadFromDisc();
 
 static void FinishRead(u64 userdata, int cyclesLate);
 static int s_finish_read;
@@ -133,17 +134,21 @@ static void FinishRead(u64 userdata, int cyclesLate)
 {
 	WaitUntilIdle();
 
-	DEBUG_LOG(DVDINTERFACE, "Disc has been read. Real time: %" PRIu64 " us. "
-	          "Real time including delay: %" PRIu64 " us. Emulated time including delay: %" PRIu64 " us.",
-	          s_realtime_done_us - s_realtime_started_us,
-	          Common::Timer::GetTimeUs() - s_realtime_started_us,
-	          (CoreTiming::GetTicks() - s_time_read_started) / (SystemTimers::GetTicksPerSecond() / 1000 / 1000));
+	while (!s_dvd_success)
+	{
+		// Asking "Do you want to retry?" would be more user friendly,
+		// but if panic alerts are turned off, the answer is automatically Yes,
+		// and we don't want an infinite loop where ReadFromDisc always fails...
+		if (PanicYesNoT("The disc could not be read (at 0x%" PRIx64 " - 0x%" PRIx64 ").\n"
+		                "Do you want to continue without retrying?",
+		                s_dvd_offset, s_dvd_offset + s_length))
+			break;
+		else
+			s_dvd_success = ReadFromDisc();
+	}
 
 	if (s_dvd_success)
 		Memory::CopyToEmu(s_output_address, s_dvd_buffer.data(), s_length);
-	else
-		PanicAlertT("The disc could not be read (at 0x%" PRIx64 " - 0x%" PRIx64 ").",
-		            s_dvd_offset, s_dvd_offset + s_length);
 
 	// This will make the buffer take less space in savestates.
 	// Reducing the size doesn't change the amount of reserved memory,
@@ -169,10 +174,15 @@ static void DVDThread()
 
 		s_dvd_buffer.resize(s_length);
 
-		s_dvd_success = DVDInterface::GetVolume().Read(s_dvd_offset, s_length, s_dvd_buffer.data(), s_decrypt);
+		s_dvd_success = ReadFromDisc();
 
 		s_realtime_done_us = Common::Timer::GetTimeUs();
 	}
+}
+
+static bool ReadFromDisc()
+{
+	return DVDInterface::GetVolume().Read(s_dvd_offset, s_length, s_dvd_buffer.data(), s_decrypt);
 }
 
 }
