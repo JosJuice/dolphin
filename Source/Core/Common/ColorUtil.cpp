@@ -2,6 +2,8 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#include <array>
+
 #include "Common/ColorUtil.h"
 #include "Common/CommonFuncs.h"
 
@@ -58,8 +60,14 @@ void decode5A3image(u32* dst, const u16* src, int width, int height)
   }
 }
 
-void decodeCI8image(u32* dst, const u8* src, u16* pal, int width, int height)
+void decodeCI8image(u32* dst, const u8* src, u16* palette, int width, int height)
 {
+  std::array<u32, 256> converted_palette;
+  for (size_t i = 0; i < converted_palette.size(); i++)
+  {
+    converted_palette[i] = ColorUtil::Decode5A3(Common::swap16(palette[i]));
+  }
+
   for (int y = 0; y < height; y += 4)
   {
     for (int x = 0; x < width; x += 8)
@@ -69,8 +77,7 @@ void decodeCI8image(u32* dst, const u8* src, u16* pal, int width, int height)
         u32* tdst = dst + (y + iy) * width + x;
         for (int ix = 0; ix < 8; ix++)
         {
-          // huh, this seems wrong. CI8, not 5A3, no?
-          tdst[ix] = ColorUtil::Decode5A3(Common::swap16(pal[src[ix]]));
+          tdst[ix] = converted_palette[src[ix]];
         }
       }
     }
