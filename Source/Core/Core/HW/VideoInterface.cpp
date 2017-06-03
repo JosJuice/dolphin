@@ -57,9 +57,9 @@ static UVIBorderBlankRegister m_BorderHBlank;
 
 static u32 s_target_refresh_rate = 0;
 
-static constexpr std::array<u32, 2> s_clock_freqs{{
+static constexpr std::array<u32, 2> s_clock_freqs = {
     27000000, 54000000,
-}};
+};
 
 static u64 s_ticks_last_line_start;  // number of ticks when the current full scanline started
 static u32 s_half_line_count;        // number of halflines that have occurred for this full frame
@@ -206,7 +206,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
     u16* ptr;
   };
 
-  std::array<MappedVar, 46> directly_mapped_vars{{
+  std::array<MappedVar, 46> directly_mapped_vars = {
       {VI_VERTICAL_TIMING, &m_VerticalTimingRegister.Hex},
       {VI_HORIZONTAL_TIMING_0_HI, &m_HTiming0.Hi},
       {VI_HORIZONTAL_TIMING_0_LO, &m_HTiming0.Lo},
@@ -253,7 +253,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
       {VI_FBWIDTH, &m_FBWidth.Hex},
       {VI_BORDER_BLANK_END, &m_BorderHBlank.Lo},
       {VI_BORDER_BLANK_START, &m_BorderHBlank.Hi},
-  }};
+  };
 
   // Declare all the boilerplate direct MMIOs.
   for (auto& mapped_var : directly_mapped_vars)
@@ -262,7 +262,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                    MMIO::DirectWrite<u16>(mapped_var.ptr));
   }
 
-  std::array<MappedVar, 8> update_params_on_read_vars{{
+  std::array<MappedVar, 8> update_params_on_read_vars = {
       {VI_VERTICAL_TIMING, &m_VerticalTimingRegister.Hex},
       {VI_HORIZONTAL_TIMING_0_HI, &m_HTiming0.Hi},
       {VI_HORIZONTAL_TIMING_0_LO, &m_HTiming0.Lo},
@@ -271,7 +271,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base)
       {VI_VBLANK_TIMING_EVEN_HI, &m_VBlankTimingEven.Hi},
       {VI_VBLANK_TIMING_EVEN_LO, &m_VBlankTimingEven.Lo},
       {VI_CLOCK, &m_Clock},
-  }};
+  };
 
   // Declare all the MMIOs that update timing params.
   for (auto& mapped_var : update_params_on_read_vars)
@@ -637,11 +637,11 @@ u32 GetTicksPerField()
 
 static void LogField(FieldType field, u32 xfb_address)
 {
-  static constexpr std::array<const char*, 2> field_type_names{{"Odd", "Even"}};
+  static constexpr std::array<const char*, 2> field_type_names = {"Odd", "Even"};
 
-  static const std::array<const UVIVBlankTimingRegister*, 2> vert_timing{{
+  static const std::array<const UVIVBlankTimingRegister*, 2> vert_timing = {
       &m_VBlankTimingOdd, &m_VBlankTimingEven,
-  }};
+  };
 
   const auto field_index = static_cast<size_t>(field);
 

@@ -773,8 +773,8 @@ bool DSPAssembler::AssemblePass(const std::string& text, int pass)
     // printf("A: %s\n", line);
     code_line++;
 
-    param_t params[10] = {{0, P_NONE, nullptr}};
-    param_t params_ext[10] = {{0, P_NONE, nullptr}};
+    param_t params[10] = {0, P_NONE, nullptr};
+    param_t params_ext[10] = {0, P_NONE, nullptr};
 
     bool upper = true;
     for (int i = 0; i < LINEBUF_SIZE; i++)

@@ -165,11 +165,11 @@ ReturnCode Device::Close(u32 fd)
 
 IPCCommandResult Device::Unsupported(const Request& request)
 {
-  static std::map<IPCCommandType, std::string> names = {{{IPC_CMD_READ, "Read"},
-                                                         {IPC_CMD_WRITE, "Write"},
-                                                         {IPC_CMD_SEEK, "Seek"},
-                                                         {IPC_CMD_IOCTL, "IOCtl"},
-                                                         {IPC_CMD_IOCTLV, "IOCtlV"}}};
+  static std::map<IPCCommandType, std::string> names = {{IPC_CMD_READ, "Read"},
+                                                        {IPC_CMD_WRITE, "Write"},
+                                                        {IPC_CMD_SEEK, "Seek"},
+                                                        {IPC_CMD_IOCTL, "IOCtl"},
+                                                        {IPC_CMD_IOCTLV, "IOCtlV"}};
   WARN_LOG(IOS, "%s does not support %s()", m_name.c_str(), names[request.command].c_str());
   return GetDefaultReply(IPC_EINVAL);
 }

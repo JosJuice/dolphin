@@ -107,9 +107,9 @@ void Arm64GPRCache::Start(PPCAnalyst::BlockRegStats& stats)
 
 bool Arm64GPRCache::IsCalleeSaved(ARM64Reg reg)
 {
-  static constexpr std::array<ARM64Reg, 11> callee_regs{{
+  static constexpr std::array<ARM64Reg, 11> callee_regs = {
       X28, X27, X26, X25, X24, X23, X22, X21, X20, X19, INVALID_REG,
-  }};
+  };
 
   return std::find(callee_regs.begin(), callee_regs.end(), EncodeRegTo64(reg)) != callee_regs.end();
 }
@@ -315,13 +315,13 @@ void Arm64GPRCache::BindToRegister(const GuestRegInfo& guest_reg, bool do_load)
 void Arm64GPRCache::GetAllocationOrder()
 {
   // Callee saved registers first in hopes that we will keep everything stored there first
-  static constexpr std::array<ARM64Reg, 29> allocation_order{{
+  static constexpr std::array<ARM64Reg, 29> allocation_order = {
       // Callee saved
       W27, W26, W25, W24, W23, W22, W21, W20, W19,
 
       // Caller saved
       W18, W17, W16, W15, W14, W13, W12, W11, W10, W9, W8, W7, W6, W5, W4, W3, W2, W1, W0, W30,
-  }};
+  };
 
   for (ARM64Reg reg : allocation_order)
     m_host_registers.push_back(HostReg(reg));
@@ -543,14 +543,14 @@ ARM64Reg Arm64FPRCache::RW(size_t preg, RegType type)
 
 void Arm64FPRCache::GetAllocationOrder()
 {
-  static constexpr std::array<ARM64Reg, 32> allocation_order{{
+  static constexpr std::array<ARM64Reg, 32> allocation_order = {
       // Callee saved
       Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15,
 
       // Caller saved
       Q16, Q17, Q18, Q19, Q20, Q21, Q22, Q23, Q24, Q25, Q26, Q27, Q28, Q29, Q30, Q31, Q7, Q6, Q5,
       Q4, Q3, Q2, Q1, Q0,
-  }};
+  };
 
   for (ARM64Reg reg : allocation_order)
     m_host_registers.push_back(HostReg(reg));
@@ -573,9 +573,9 @@ void Arm64FPRCache::FlushByHost(ARM64Reg host_reg)
 
 bool Arm64FPRCache::IsCalleeSaved(ARM64Reg reg)
 {
-  static constexpr std::array<ARM64Reg, 9> callee_regs{{
+  static constexpr std::array<ARM64Reg, 9> callee_regs = {
       Q8, Q9, Q10, Q11, Q12, Q13, Q14, Q15, INVALID_REG,
-  }};
+  };
 
   return std::find(callee_regs.begin(), callee_regs.end(), reg) != callee_regs.end();
 }

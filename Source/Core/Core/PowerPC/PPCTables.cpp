@@ -31,12 +31,12 @@ std::array<GekkoOPInfo*, 1024> m_infoTable63;
 std::array<GekkoOPInfo*, 512> m_allInstructions;
 size_t m_numInstructions;
 
-const std::array<u64, 16> m_crTable = {{
+const std::array<u64, 16> m_crTable = {
     PPCCRToInternal(0x0), PPCCRToInternal(0x1), PPCCRToInternal(0x2), PPCCRToInternal(0x3),
     PPCCRToInternal(0x4), PPCCRToInternal(0x5), PPCCRToInternal(0x6), PPCCRToInternal(0x7),
     PPCCRToInternal(0x8), PPCCRToInternal(0x9), PPCCRToInternal(0xA), PPCCRToInternal(0xB),
     PPCCRToInternal(0xC), PPCCRToInternal(0xD), PPCCRToInternal(0xE), PPCCRToInternal(0xF),
-}};
+};
 
 GekkoOPInfo* GetOpInfo(UGeckoInstruction _inst)
 {

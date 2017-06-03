@@ -433,9 +433,9 @@ void AXUCode::ProcessPBList(u32 pb_addr)
 
   while (pb_addr)
   {
-    AXBuffers buffers = {{m_samples_left, m_samples_right, m_samples_surround, m_samples_auxA_left,
-                          m_samples_auxA_right, m_samples_auxA_surround, m_samples_auxB_left,
-                          m_samples_auxB_right, m_samples_auxB_surround}};
+    AXBuffers buffers = {m_samples_left, m_samples_right, m_samples_surround, m_samples_auxA_left,
+                         m_samples_auxA_right, m_samples_auxA_surround, m_samples_auxB_left,
+                         m_samples_auxB_right, m_samples_auxB_surround};
 
     ReadPB(pb_addr, pb, m_crc);
 

@@ -22,7 +22,7 @@ using JIT::x86::DSPEmitter;
 
 // clang-format off
 const std::array<DSPOPCTemplate, 214> s_opcodes =
-{{
+{
   //                                                      # of parameters----+   {type, size, loc, lshift, mask}                                                               branch        reads PC       // instruction approximation
   // name      opcode  mask    interpreter function  JIT function    size-V  V   param 1                       param 2                       param 3                    extendable    uncond.       updates SR
   {"NOP",      0x0000, 0xfffc, Interpreter::nop,     &DSPEmitter::nop,    1, 0, {},                                                                                     false, false, false, false, false}, // no operation
@@ -290,7 +290,7 @@ const std::array<DSPOPCTemplate, 214> s_opcodes =
   {"ADDPAXZ",  0xf800, 0xfc00, Interpreter::addpaxz, &DSPEmitter::addpaxz,1, 2, {{P_ACC,   1, 0,  9, 0x0200},  {P_AX, 1, 0, 8, 0x0100}},                                true, false, false, false, true}, // $acD.hm = $prod.hm + $ax.h; $acD.l = 0
   {"CLRL",     0xfc00, 0xfe00, Interpreter::clrl,    &DSPEmitter::clrl,   1, 1, {{P_ACCL,  1, 0, 11, 0x0800}},                                                          true, false, false, false, true}, // $acR.l = 0
   {"MOVPZ",    0xfe00, 0xfe00, Interpreter::movpz,   &DSPEmitter::movpz,  1, 1, {{P_ACC,   1, 0,  8, 0x0100}},                                                          true, false, false, false, true}, // $acD.hm = $prod.hm; $acD.l = 0
-}};
+};
 
 const DSPOPCTemplate cw =
   {"CW",     0x0000, 0x0000, Interpreter::nop, nullptr, 1, 1, {{P_VAL, 2, 0, 0, 0xffff}}, false, false, false, false, false};
@@ -298,7 +298,7 @@ const DSPOPCTemplate cw =
 // extended opcodes
 
 const std::array<DSPOPCTemplate, 25> s_opcodes_ext =
-{{
+{
   {"XXX",    0x0000, 0x00fc, Interpreter::Ext::nop,  &DSPEmitter::nop,  1, 1, {{P_VAL, 1, 0, 0, 0x00ff}}, false, false, false, false, false}, // no operation
 
   {"DR",     0x0004, 0x00fc, Interpreter::Ext::dr,   &DSPEmitter::dr,   1, 1, {{P_REG, 1, 0, 0, 0x0003}}, false, false, false, false, false}, // $arR--
@@ -330,10 +330,10 @@ const std::array<DSPOPCTemplate, 25> s_opcodes_ext =
   {"LDN",    0x00c4, 0x00cc, Interpreter::Ext::ldn,  &DSPEmitter::ldn,  1, 3, {{P_REGM18, 1, 0, 4, 0x0020}, {P_REGM19, 1, 0, 3, 0x0010}, {P_PRG, 1, 0, 0, 0x0003}}, false, false, false, false, false}, // $ax0.D = MEM[$arS]; $ax1.R = MEM[$ar3++]; $arS += $ixS
   {"LDM",    0x00c8, 0x00cc, Interpreter::Ext::ldm,  &DSPEmitter::ldm,  1, 3, {{P_REGM18, 1, 0, 4, 0x0020}, {P_REGM19, 1, 0, 3, 0x0010}, {P_PRG, 1, 0, 0, 0x0003}}, false, false, false, false, false}, // $ax0.D = MEM[$arS++]; $ax1.R = MEM[$ar3]; $ar3 += $ix3
   {"LDNM",   0x00cc, 0x00cc, Interpreter::Ext::ldnm, &DSPEmitter::ldnm, 1, 3, {{P_REGM18, 1, 0, 4, 0x0020}, {P_REGM19, 1, 0, 3, 0x0010}, {P_PRG, 1, 0, 0, 0x0003}}, false, false, false, false, false}, // $ax0.D = MEM[$arS]; $ax1.R = MEM[$ar3]; $arS += $ixS; $ar3 += $ix3
-}};
+};
 
 const std::array<pdlabel_t, 96> pdlabels =
-{{
+{
   {0xffa0, "COEF_A1_0", "COEF_A1_0",},
   {0xffa1, "COEF_A2_0", "COEF_A2_0",},
   {0xffa2, "COEF_A1_1", "COEF_A1_1",},
@@ -435,10 +435,10 @@ const std::array<pdlabel_t, 96> pdlabels =
   {0xfffd, "DMBL", "DSP Mailbox L",},
   {0xfffe, "CMBH", "CPU Mailbox H",},
   {0xffff, "CMBL", "CPU Mailbox L",},
-}};
+};
 
 const std::array<pdlabel_t, 36> regnames =
-{{
+{
   {0x00, "AR0",       "Addr Reg 00",},
   {0x01, "AR1",       "Addr Reg 01",},
   {0x02, "AR2",       "Addr Reg 02",},
@@ -477,7 +477,7 @@ const std::array<pdlabel_t, 36> regnames =
   {0x21, "ACC1",      "Accu Full 1",},
   {0x22, "AX0",       "Extra Accu 0",},
   {0x23, "AX1",       "Extra Accu 1",},
-}};
+};
 // clang-format on
 
 std::array<u16, WRITEBACK_LOG_SIZE> writeBackLog;

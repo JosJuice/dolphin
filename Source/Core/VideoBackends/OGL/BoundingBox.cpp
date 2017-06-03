@@ -52,7 +52,7 @@ void BoundingBox::Init(int target_width, int target_height)
   }
   else
   {
-    s_stencil_bounds = {{0, 0, 0, 0}};
+    s_stencil_bounds = {0, 0, 0, 0};
     glGenBuffers(1, &s_pbo);
     SetTargetSizeChanged(target_width, target_height);
   }

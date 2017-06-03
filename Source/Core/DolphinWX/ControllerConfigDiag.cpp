@@ -48,9 +48,9 @@
 ControllerConfigDiag::ControllerConfigDiag(wxWindow* const parent)
     : wxDialog(parent, wxID_ANY, _("Dolphin Controller Configuration"))
 {
-  m_gc_pad_type_strs = {{_("None"), _("Standard Controller"), _("GameCube Adapter for Wii U"),
-                         _("Steering Wheel"), _("Dance Mat"), _("DK Bongos"), _("GBA"),
-                         _("Keyboard")}};
+  m_gc_pad_type_strs = {_("None"), _("Standard Controller"), _("GameCube Adapter for Wii U"),
+                        _("Steering Wheel"), _("Dance Mat"), _("DK Bongos"), _("GBA"),
+                        _("Keyboard")};
 
   const int space5 = FromDIP(5);
 
@@ -309,8 +309,8 @@ wxSizer* ControllerConfigDiag::CreatePassthroughBTConfigSizer()
 
 wxSizer* ControllerConfigDiag::CreateEmulatedBTConfigSizer()
 {
-  const std::array<wxString, 4> src_choices{
-      {_("None"), _("Emulated Wii Remote"), _("Real Wii Remote"), _("Hybrid Wii Remote")}};
+  const std::array<wxString, 4> src_choices = {
+      _("None"), _("Emulated Wii Remote"), _("Real Wii Remote"), _("Hybrid Wii Remote")};
 
   const int space5 = FromDIP(5);
 

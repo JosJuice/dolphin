@@ -350,7 +350,7 @@ HGLRC cInterfaceWGL::CreateCoreContext(HDC dc, HGLRC share_context)
   // List of versions to attempt context creation for. (4.5-3.2, geometry shaders is a minimum
   // requirement since we're using core profile)
   static constexpr std::array<std::pair<int, int>, 8> try_versions = {
-      {{4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0}, {3, 3}, {3, 2}}};
+      {4, 5}, {4, 4}, {4, 3}, {4, 2}, {4, 1}, {4, 0}, {3, 3}, {3, 2}};
 
   for (const auto& version : try_versions)
   {

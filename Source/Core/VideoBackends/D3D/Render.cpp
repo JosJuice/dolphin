@@ -265,7 +265,7 @@ Renderer::Renderer() : ::Renderer(D3D::GetBackBufferWidth(), D3D::GetBackBufferH
   s_gx_state.raster.cull_mode = D3D11_CULL_NONE;
 
   // Clear EFB textures
-  constexpr std::array<float, 4> clear_color{{0.f, 0.f, 0.f, 1.f}};
+  constexpr std::array<float, 4> clear_color = {0.f, 0.f, 0.f, 1.f};
   D3D::context->ClearRenderTargetView(FramebufferManager::GetEFBColorTexture()->GetRTV(),
                                       clear_color.data());
   D3D::context->ClearDepthStencilView(FramebufferManager::GetEFBDepthTexture()->GetDSV(),
@@ -669,18 +669,18 @@ void Renderer::SetBlendMode(bool forceUpdate)
   // Example: D3DBLEND_DESTALPHA needs to be D3DBLEND_ONE since the result without an alpha channel
   // is assumed to always be 1.
   bool target_has_alpha = bpmem.zcontrol.pixel_format == PEControl::RGBA6_Z24;
-  const std::array<D3D11_BLEND, 8> d3d_src_factors{{
+  const std::array<D3D11_BLEND, 8> d3d_src_factors = {
       D3D11_BLEND_ZERO, D3D11_BLEND_ONE, D3D11_BLEND_DEST_COLOR, D3D11_BLEND_INV_DEST_COLOR,
       D3D11_BLEND_SRC1_ALPHA, D3D11_BLEND_INV_SRC1_ALPHA,
       (target_has_alpha) ? D3D11_BLEND_DEST_ALPHA : D3D11_BLEND_ONE,
       (target_has_alpha) ? D3D11_BLEND_INV_DEST_ALPHA : D3D11_BLEND_ZERO,
-  }};
-  const std::array<D3D11_BLEND, 8> d3d_dest_factors{{
+  };
+  const std::array<D3D11_BLEND, 8> d3d_dest_factors = {
       D3D11_BLEND_ZERO, D3D11_BLEND_ONE, D3D11_BLEND_SRC_COLOR, D3D11_BLEND_INV_SRC_COLOR,
       D3D11_BLEND_SRC1_ALPHA, D3D11_BLEND_INV_SRC1_ALPHA,
       (target_has_alpha) ? D3D11_BLEND_DEST_ALPHA : D3D11_BLEND_ONE,
       (target_has_alpha) ? D3D11_BLEND_INV_DEST_ALPHA : D3D11_BLEND_ZERO,
-  }};
+  };
 
   if (bpmem.blendmode.logicopenable && !bpmem.blendmode.blendenable && !forceUpdate)
     return;
@@ -731,7 +731,7 @@ void Renderer::SwapImpl(u32 xfbAddr, u32 fbWidth, u32 fbStride, u32 fbHeight,
 
   D3D::context->OMSetRenderTargets(1, &D3D::GetBackBuffer()->GetRTV(), nullptr);
 
-  constexpr std::array<float, 4> clear_color{{0.f, 0.f, 0.f, 1.f}};
+  constexpr std::array<float, 4> clear_color = {0.f, 0.f, 0.f, 1.f};
   D3D::context->ClearRenderTargetView(D3D::GetBackBuffer()->GetRTV(), clear_color.data());
 
   // activate linear filtering for the buffer copies
@@ -976,9 +976,9 @@ void Renderer::RestoreCull()
 
 void Renderer::SetGenerationMode()
 {
-  constexpr std::array<D3D11_CULL_MODE, 4> d3d_cull_modes{{
+  constexpr std::array<D3D11_CULL_MODE, 4> d3d_cull_modes = {
       D3D11_CULL_NONE, D3D11_CULL_BACK, D3D11_CULL_FRONT, D3D11_CULL_BACK,
-  }};
+  };
 
   // rastdc.FrontCounterClockwise must be false for this to work
   // TODO: GX_CULL_ALL not supported, yet!
@@ -1011,7 +1011,7 @@ void Renderer::SetLogicOpMode()
   // 13  ~Source | destination
   // 14  ~(Source & destination)
   // 15  0xff
-  constexpr std::array<D3D11_BLEND_OP, 16> d3d_logic_ops{{
+  constexpr std::array<D3D11_BLEND_OP, 16> d3d_logic_ops = {
       D3D11_BLEND_OP_ADD,           // 0
       D3D11_BLEND_OP_ADD,           // 1
       D3D11_BLEND_OP_SUBTRACT,      // 2
@@ -1028,8 +1028,8 @@ void Renderer::SetLogicOpMode()
       D3D11_BLEND_OP_ADD,           // 13
       D3D11_BLEND_OP_ADD,           // 14
       D3D11_BLEND_OP_ADD            // 15
-  }};
-  constexpr std::array<D3D11_BLEND, 16> d3d_logic_op_src_factors{{
+  };
+  constexpr std::array<D3D11_BLEND, 16> d3d_logic_op_src_factors = {
       D3D11_BLEND_ZERO,            // 0
       D3D11_BLEND_DEST_COLOR,      // 1
       D3D11_BLEND_ONE,             // 2
@@ -1046,8 +1046,8 @@ void Renderer::SetLogicOpMode()
       D3D11_BLEND_INV_SRC_COLOR,   // 13
       D3D11_BLEND_INV_DEST_COLOR,  // 14
       D3D11_BLEND_ONE              // 15
-  }};
-  constexpr std::array<D3D11_BLEND, 16> d3d_logic_op_dest_factors{{
+  };
+  constexpr std::array<D3D11_BLEND, 16> d3d_logic_op_dest_factors = {
       D3D11_BLEND_ZERO,            // 0
       D3D11_BLEND_ZERO,            // 1
       D3D11_BLEND_INV_SRC_COLOR,   // 2
@@ -1064,7 +1064,7 @@ void Renderer::SetLogicOpMode()
       D3D11_BLEND_ONE,             // 13
       D3D11_BLEND_INV_SRC_COLOR,   // 14
       D3D11_BLEND_ONE              // 15
-  }};
+  };
 
   if (bpmem.blendmode.logicopenable && !bpmem.blendmode.blendenable)
   {

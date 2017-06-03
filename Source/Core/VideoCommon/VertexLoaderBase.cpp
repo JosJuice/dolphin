@@ -80,15 +80,15 @@ std::string VertexLoaderBase::ToString() const
   dest += GetName();
   dest += ": ";
 
-  static constexpr std::array<const char*, 4> pos_mode{{
+  static constexpr std::array<const char*, 4> pos_mode = {
       "Inv", "Dir", "I8", "I16",
   }};
-  static constexpr std::array<const char*, 8> pos_formats{{
+  static constexpr std::array<const char*, 8> pos_formats = {
       "u8", "s8", "u16", "s16", "flt", "Inv", "Inv", "Inv",
-  }};
-  static constexpr std::array<const char*, 8> color_format{{
+  };
+  static constexpr std::array<const char*, 8> color_format = {
       "565", "888", "888x", "4444", "6666", "8888", "Inv", "Inv",
-  }};
+  };
 
   dest += StringFromFormat("%ib skin: %i P: %i %s-%s ", m_VertexSize, (u32)m_VtxDesc.PosMatIdx,
                            m_VtxAttr.PosElements ? 3 : 2, pos_mode[m_VtxDesc.Position],
@@ -100,7 +100,7 @@ std::string VertexLoaderBase::ToString() const
                              pos_formats[m_VtxAttr.NormalFormat]);
   }
 
-  const std::array<u64, 2> color_mode{{m_VtxDesc.Color0, m_VtxDesc.Color1}};
+  const std::array<u64, 2> color_mode = {m_VtxDesc.Color0, m_VtxDesc.Color1};
   for (size_t i = 0; i < color_mode.size(); i++)
   {
     if (color_mode[i])
@@ -109,9 +109,9 @@ std::string VertexLoaderBase::ToString() const
                                pos_mode[color_mode[i]], color_format[m_VtxAttr.color[i].Comp]);
     }
   }
-  const std::array<u64, 8> tex_mode{{m_VtxDesc.Tex0Coord, m_VtxDesc.Tex1Coord, m_VtxDesc.Tex2Coord,
-                                     m_VtxDesc.Tex3Coord, m_VtxDesc.Tex4Coord, m_VtxDesc.Tex5Coord,
-                                     m_VtxDesc.Tex6Coord, m_VtxDesc.Tex7Coord}};
+  const std::array<u64, 8> tex_mode = {m_VtxDesc.Tex0Coord, m_VtxDesc.Tex1Coord, m_VtxDesc.Tex2Coord,
+                                       m_VtxDesc.Tex3Coord, m_VtxDesc.Tex4Coord, m_VtxDesc.Tex5Coord,
+                                       m_VtxDesc.Tex6Coord, m_VtxDesc.Tex7Coord};
   for (size_t i = 0; i < tex_mode.size(); i++)
   {
     if (tex_mode[i])

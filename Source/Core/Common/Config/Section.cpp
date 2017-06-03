@@ -254,11 +254,11 @@ bool RecursiveSection::Exists(const std::string& key) const
 bool RecursiveSection::Get(const std::string& key, std::string* value,
                            const std::string& default_value) const
 {
-  static constexpr std::array<LayerType, 7> search_order = {{
+  static constexpr std::array<LayerType, 7> search_order = {
       // Skip the meta layer
       LayerType::CurrentRun, LayerType::CommandLine, LayerType::Movie, LayerType::Netplay,
       LayerType::LocalGame, LayerType::GlobalGame, LayerType::Base,
-  }};
+  };
 
   for (auto layer_id : search_order)
   {

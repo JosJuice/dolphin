@@ -68,8 +68,8 @@ enum : int
 
 wxImageList* LoadIconBitmaps(const wxWindow* context)
 {
-  static constexpr std::array<const char*, 3> icon_names{
-      {"isoproperties_disc", "isoproperties_folder", "isoproperties_file"}};
+  static constexpr std::array<const char*, 3> icon_names = {
+      "isoproperties_disc", "isoproperties_folder", "isoproperties_file"};
 
   const wxSize icon_size = context->FromDIP(wxSize(16, 16));
   auto* const icon_list = new wxImageList(icon_size.GetWidth(), icon_size.GetHeight());

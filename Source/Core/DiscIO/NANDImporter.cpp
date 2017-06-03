@@ -207,9 +207,9 @@ void NANDImporter::ExtractCertificates(const std::string& nand_root)
     u32 size;
     std::string filename;
   };
-  std::array<Certificate, 3> certificates = {{{0x92834, 1005, "/clientca.pem"},
-                                              {0x92d38, 609, "/clientcakey.pem"},
-                                              {0x92440, 897, "/rootca.pem"}}};
+  std::array<Certificate, 3> certificates = {{0x92834, 1005, "/clientca.pem"},
+                                             {0x92d38, 609, "/clientcakey.pem"},
+                                             {0x92440, 897, "/rootca.pem"}};
   for (const Certificate& cert : certificates)
   {
     file.Seek(cert.offset, SEEK_SET);

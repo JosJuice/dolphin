@@ -25,7 +25,7 @@ namespace x86
 // Ordered in order of prefered use.
 // Not all of these are actually available
 constexpr std::array<X64Reg, 15> s_allocation_order = {
-    {R8, R9, R10, R11, R12, R13, R14, R15, RSI, RDI, RBX, RCX, RDX, RAX, RBP}};
+    R8, R9, R10, R11, R12, R13, R14, R15, RSI, RDI, RBX, RCX, RDX, RAX, RBP};
 
 static Gen::OpArg GetRegisterPointer(size_t reg)
 {

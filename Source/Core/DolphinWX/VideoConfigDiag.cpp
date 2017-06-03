@@ -587,7 +587,7 @@ VideoConfigDiag::VideoConfigDiag(wxWindow* parent, const std::string& title)
 
     // AF
     {
-      const std::array<wxString, 5> af_choices{{"1x", "2x", "4x", "8x", "16x"}};
+      const std::array<wxString, 5> af_choices = {"1x", "2x", "4x", "8x", "16x"};
       szr_enh->Add(new wxStaticText(page_enh, wxID_ANY, _("Anisotropic Filtering:")),
                    wxGBPosition(row, 0), wxDefaultSpan, wxALIGN_CENTER_VERTICAL);
       szr_enh->Add(CreateChoice(page_enh, vconfig.iMaxAnisotropy, wxGetTranslation(af_desc),

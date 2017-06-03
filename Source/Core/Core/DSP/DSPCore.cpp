@@ -42,18 +42,18 @@ static bool VerifyRoms()
   };
 
   static const std::array<DspRomHashes, 4> known_roms = {
-      {// Official Nintendo ROM
-       {0x66f334fe, 0xf3b93527},
+      // Official Nintendo ROM
+      {0x66f334fe, 0xf3b93527},
 
-       // LM1234 replacement ROM (Zelda UCode only)
-       {0x9c8f593c, 0x10000001},
+      // LM1234 replacement ROM (Zelda UCode only)
+      {0x9c8f593c, 0x10000001},
 
-       // delroth's improvement on LM1234 replacement ROM (Zelda and AX only,
-       // IPL/Card/GBA still broken)
-       {0xd9907f71, 0xb019c2fb},
+      // delroth's improvement on LM1234 replacement ROM (Zelda and AX only,
+      // IPL/Card/GBA still broken)
+      {0xd9907f71, 0xb019c2fb},
 
-       // above with improved resampling coefficients
-       {0xd9907f71, 0xdb6880c1}}};
+      // above with improved resampling coefficients
+      {0xd9907f71, 0xdb6880c1}};
 
   u32 hash_irom = HashAdler32((u8*)g_dsp.irom, DSP_IROM_BYTE_SIZE);
   u32 hash_drom = HashAdler32((u8*)g_dsp.coef, DSP_COEF_BYTE_SIZE);

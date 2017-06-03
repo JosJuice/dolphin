@@ -38,8 +38,8 @@ public:
     wxSize bitmap_size = FromDIP(wxSize(24, 24));
     SetToolBitmapSize(bitmap_size);
 
-    static const std::array<const char* const, Num_Bitmaps> image_names{
-        {"toolbar_debugger_delete", "toolbar_add_breakpoint", "toolbar_add_memorycheck"}};
+    static const std::array<const char* const, Num_Bitmaps> image_names = {
+        "toolbar_debugger_delete", "toolbar_add_breakpoint", "toolbar_add_memorycheck"};
     for (std::size_t i = 0; i < image_names.size(); ++i)
       m_Bitmaps[i] =
           WxUtils::LoadScaledResourceBitmap(image_names[i], this, bitmap_size, wxDefaultSize,

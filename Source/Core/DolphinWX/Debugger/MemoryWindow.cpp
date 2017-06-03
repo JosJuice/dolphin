@@ -310,9 +310,9 @@ void CMemoryWindow::OnDumpFakeVMEM(wxCommandEvent& event)
 
 void CMemoryWindow::OnDataTypeChanged(wxCommandEvent& ev)
 {
-  static constexpr std::array<MemoryDataType, 5> map{{MemoryDataType::U8, MemoryDataType::U16,
-                                                      MemoryDataType::U32, MemoryDataType::ASCII,
-                                                      MemoryDataType::FloatingPoint}};
+  static constexpr std::array<MemoryDataType, 5> map = {MemoryDataType::U8, MemoryDataType::U16,
+                                                        MemoryDataType::U32, MemoryDataType::ASCII,
+                                                        MemoryDataType::FloatingPoint};
   if (ev.GetId() == IDM_DATA_TYPE_RBOX)
   {
     m_memory_view->SetDataType(map.at(ev.GetSelection()));

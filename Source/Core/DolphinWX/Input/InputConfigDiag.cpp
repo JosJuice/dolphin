@@ -956,9 +956,9 @@ ControlGroupBox::ControlGroupBox(ControllerEmu::ControlGroup* const group, wxWin
     : wxStaticBoxSizer(wxVERTICAL, parent, wxGetTranslation(StrToWxStr(group->ui_name))),
       control_group(group), static_bitmap(nullptr), m_scale(1)
 {
-  static constexpr std::array<const char* const, 2> exclude_buttons{{"Mic", "Modifier"}};
-  static constexpr std::array<const char* const, 7> exclude_groups{
-      {"IR", "Swing", "Tilt", "Shake", "UDP Wiimote", "Extension", "Rumble"}};
+  static constexpr std::array<const char* const, 2> exclude_buttons = {"Mic", "Modifier"};
+  static constexpr std::array<const char* const, 7> exclude_groups = {
+      "IR", "Swing", "Tilt", "Shake", "UDP Wiimote", "Extension", "Rumble"};
 
   wxFont small_font(7, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL);
   const int space3 = parent->FromDIP(3);

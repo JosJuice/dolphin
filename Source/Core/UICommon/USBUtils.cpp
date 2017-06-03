@@ -13,7 +13,7 @@
 // Because opening and getting the device name from devices is slow, especially on Windows
 // with usbdk, we cannot do that for every single device. We should however still show
 // device names for known Wii peripherals.
-static const std::map<std::pair<u16, u16>, std::string> s_wii_peripherals = {{
+static const std::map<std::pair<u16, u16>, std::string> s_wii_peripherals = {
     {{0x046d, 0x0a03}, "Logitech Microphone"},
     {{0x057e, 0x0308}, "Wii Speak"},
     {{0x057e, 0x0309}, "Nintendo USB Microphone"},
@@ -25,7 +25,7 @@ static const std::map<std::pair<u16, u16>, std::string> s_wii_peripherals = {{
     {{0x1bad, 0x3110}, "Rock Band 3 Mustang Guitar Dongle"},
     {{0x1bad, 0x3430}, "Rock Band Drum Set"},
     {{0x21a4, 0xac40}, "EA Active NFL"},
-}};
+};
 
 namespace USBUtils
 {

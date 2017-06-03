@@ -13,7 +13,7 @@
 #include "Core/PowerPC/PowerPC.h"
 
 // Numbers are chosen randomly to make sure the correct one is given.
-static constexpr std::array<u64, 5> CB_IDS{{42, 144, 93, 1026, UINT64_C(0xFFFF7FFFF7FFFF)}};
+static constexpr std::array<u64, 5> CB_IDS = {42, 144, 93, 1026, UINT64_C(0xFFFF7FFFF7FFFF)};
 static constexpr int MAX_SLICE_LENGTH = 20000;  // Copied from CoreTiming internals
 
 static std::bitset<CB_IDS.size()> s_callbacks_ran_flags;

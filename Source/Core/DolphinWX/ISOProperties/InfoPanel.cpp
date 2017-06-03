@@ -214,7 +214,7 @@ void InfoPanel::LoadBannerImage()
 
 wxStaticBoxSizer* InfoPanel::CreateISODetailsSizer()
 {
-  std::vector<std::pair<wxString, wxTextCtrl*&>> controls = {{
+  std::vector<std::pair<wxString, wxTextCtrl*&>> controls = {
       {_("Internal Name:"), m_internal_name},
       {_("Game ID:"), m_game_id},
       {_("Country:"), m_country},
@@ -222,7 +222,7 @@ wxStaticBoxSizer* InfoPanel::CreateISODetailsSizer()
       {_("Revision:"), m_revision},
       {_("Apploader Date:"), m_date},
       {_("FST Size:"), m_fst},
-  }};
+  };
   if (m_opened_iso->GetTMD(m_opened_iso->GetGamePartition()).IsValid())
     controls.emplace_back(_("IOS Version:"), m_ios_version);
 
