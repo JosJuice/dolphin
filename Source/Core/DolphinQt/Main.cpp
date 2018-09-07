@@ -9,6 +9,10 @@
 #include "Common/StringUtil.h"
 #endif
 
+#include <iostream>
+#include <memory>
+#include <string>
+
 #include <OptionParser.h>
 #include <QAbstractEventDispatcher>
 #include <QApplication>
@@ -22,6 +26,7 @@
 #include "Core/Boot/Boot.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
+#include "DiscIO/Volume.h"
 #include "DolphinQt/Host.h"
 #include "DolphinQt/MainWindow.h"
 #include "DolphinQt/QtUtils/RunOnObject.h"
@@ -73,6 +78,47 @@ static bool QtMsgAlertHandler(const char* caption, const char* text, bool yes_no
   return false;
 }
 
+static int HeaderCompare(int argc, char* argv[])
+{
+  if (argc < 2)
+  {
+    std::cerr << "This is the special \"header compare\" version of Dolphin. "
+                 "Provide one disc image as an argument.\n";
+    return 1;
+  }
+
+  const std::string path = argv[1];
+  const std::unique_ptr<DiscIO::Volume> volume = DiscIO::CreateVolumeFromFilename(path);
+  if (!volume)
+  {
+    std::cerr << "INVALID FILE: " + path;
+    return 1;
+  }
+
+  std::vector<u8> unencrypted_header(0x60);
+  if (!volume->Read(0, unencrypted_header.size(), unencrypted_header.data(),
+                    DiscIO::PARTITION_NONE))
+  {
+    std::cerr << "UNENCRYPTED READ ERROR: " + path;
+    return 1;
+  }
+
+  std::vector<u8> encrypted_header(0x60);
+  if (!volume->Read(0, encrypted_header.size(), encrypted_header.data(), volume->GetGamePartition()))
+  {
+    std::cerr << "ENCRYPTED READ ERROR: " + path;
+    return 1;
+  }
+
+  if (unencrypted_header != encrypted_header)
+  {
+    std::cerr << "HEADER MISMATCH: " + path;
+    return 1;
+  }
+
+  return 0;
+}
+
 // N.B. On Windows, this should be called from WinMain. Link against qtmain and specify
 // /SubSystem:Windows
 int main(int argc, char* argv[])
@@ -118,6 +164,8 @@ int main(int argc, char* argv[])
     QApplication::setFont(font);
   }
 #endif
+
+  return HeaderCompare(argc, argv);
 
   auto parser = CommandLineParse::CreateParser(CommandLineParse::ParserOptions::IncludeGUIOptions);
   const optparse::Values& options = CommandLineParse::ParseArguments(parser.get(), argc, argv);
