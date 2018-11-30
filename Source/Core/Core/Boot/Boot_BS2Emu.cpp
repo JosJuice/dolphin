@@ -2,6 +2,8 @@
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
+#include <cstdlib>
+#include <iostream>
 #include <map>
 #include <optional>
 #include <string>
@@ -85,7 +87,7 @@ void CBoot::SetupBAT(bool is_wii)
   PowerPC::IBATUpdated();
 }
 
-bool CBoot::RunApploader(bool is_wii, const DiscIO::Volume& volume)
+bool CBoot::RunApploader(bool is_wii, const DiscIO::Volume& volume, const std::string& path)
 {
   const DiscIO::Partition partition = volume.GetGamePartition();
 
@@ -161,6 +163,18 @@ bool CBoot::RunApploader(bool is_wii, const DiscIO::Volume& volume)
   // return
   PC = PowerPC::ppcState.gpr[3];
 
+  if (static_cast<bool>(PowerPC::Read_U32(0x800000CC)) ==
+      DiscIO::IsNTSC(SConfig::GetInstance().m_region))
+  {
+    PanicAlert("UNOFFICIAL APPLOADER: %s", path.c_str());
+    std::cout << "UNOFFICIAL APPLOADER: " + path << std::endl;
+    std::exit(1);
+  }
+  else
+  {
+    std::exit(0);
+  }
+
   return true;
 }
 
@@ -200,7 +214,7 @@ void CBoot::SetupGCMemory()
 // GameCube Bootstrap 2 HLE:
 // copy the apploader to 0x81200000
 // execute the apploader, function by function, using the above utility.
-bool CBoot::EmulatedBS2_GC(const DiscIO::Volume& volume)
+bool CBoot::EmulatedBS2_GC(const DiscIO::Volume& volume, const std::string& path)
 {
   INFO_LOG(BOOT, "Faking GC BS2...");
 
@@ -222,7 +236,7 @@ bool CBoot::EmulatedBS2_GC(const DiscIO::Volume& volume)
   // Global pointer to Small Data Area Base (Luigi's Mansion's apploader uses it)
   PowerPC::ppcState.gpr[13] = ntsc ? 0x81465320 : 0x814b4fc0;
 
-  return RunApploader(/*is_wii*/ false, volume);
+  return RunApploader(/*is_wii*/ false, volume, path);
 }
 
 bool CBoot::SetupWiiMemory(IOS::HLE::IOSC::ConsoleType console_type)
@@ -366,7 +380,7 @@ static void WriteEmptyPlayRecord()
 // Wii Bootstrap 2 HLE:
 // copy the apploader to 0x81200000
 // execute the apploader
-bool CBoot::EmulatedBS2_Wii(const DiscIO::Volume& volume)
+bool CBoot::EmulatedBS2_Wii(const DiscIO::Volume& volume, const std::string& path)
 {
   INFO_LOG(BOOT, "Faking Wii BS2...");
   if (volume.GetVolumeType() != DiscIO::Platform::WiiDisc)
@@ -414,7 +428,7 @@ bool CBoot::EmulatedBS2_Wii(const DiscIO::Volume& volume)
 
   PowerPC::ppcState.gpr[1] = 0x816ffff0;  // StackPointer
 
-  if (!RunApploader(/*is_wii*/ true, volume))
+  if (!RunApploader(/*is_wii*/ true, volume, path))
     return false;
 
   // Warning: This call will set incorrect running game metadata if our volume parameter
@@ -426,7 +440,7 @@ bool CBoot::EmulatedBS2_Wii(const DiscIO::Volume& volume)
 
 // Returns true if apploader has run successfully. If is_wii is true, the disc
 // that volume refers to must currently be inserted into the emulated disc drive.
-bool CBoot::EmulatedBS2(bool is_wii, const DiscIO::Volume& volume)
+bool CBoot::EmulatedBS2(bool is_wii, const DiscIO::Volume& volume, const std::string& path)
 {
-  return is_wii ? EmulatedBS2_Wii(volume) : EmulatedBS2_GC(volume);
+  return is_wii ? EmulatedBS2_Wii(volume, path) : EmulatedBS2_GC(volume, path);
 }

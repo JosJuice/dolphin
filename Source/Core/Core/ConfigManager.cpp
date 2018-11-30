@@ -938,6 +938,8 @@ bool SConfig::SetPathsAndGameMetadata(const BootParameters& boot)
   if (!std::visit(SetGameMetadata(this, &m_region), boot.parameters))
     return false;
 
+  m_region = m_region == DiscIO::Region::PAL ? DiscIO::Region::NTSC_U : DiscIO::Region::PAL;
+
   if (m_region == DiscIO::Region::Unknown)
     m_region = GetFallbackRegion();
 
