@@ -176,7 +176,7 @@ bool CBoot::RunApploader(bool is_wii, const DiscIO::Volume& volume, const std::s
     const DiscIO::Region region = volume.GetRegion();
 
     const bool should_be_ntsc_j =
-        c == 'J' || c == 'K' || c == 'W' || (c == 'E' && volume.GetRevision() >= 0x30);
+        c == 'J' || (c == 'K' && !is_wii) || c == 'W' || (c == 'E' && volume.GetRevision() >= 0x30);
     const bool is_ntsc_j = region == DiscIO::Region::NTSC_J;
 
     const DiscIO::Platform platform =
