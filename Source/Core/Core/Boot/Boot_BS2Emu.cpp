@@ -172,7 +172,27 @@ bool CBoot::RunApploader(bool is_wii, const DiscIO::Volume& volume, const std::s
   }
   else
   {
-    std::exit(0);
+    const char c = volume.GetGameID()[3];
+    const DiscIO::Region region = volume.GetRegion();
+
+    const bool should_be_ntsc_j =
+        c == 'J' || c == 'K' || c == 'W' || (c == 'E' && volume.GetRevision() >= 0x30);
+    const bool is_ntsc_j = region == DiscIO::Region::NTSC_J;
+
+    const DiscIO::Platform platform =
+        is_wii ? DiscIO::Platform::WiiDisc : DiscIO::Platform::GameCubeDisc;
+    const bool region_mismatch = region != DiscIO::CountryCodeToRegion(c, platform, region);
+
+    if (should_be_ntsc_j != is_ntsc_j || region_mismatch)
+    {
+      PanicAlert("BAD REGION: %s", path.c_str());
+      std::cout << "BAD REGION: " + path << std::endl;
+      std::exit(1);
+    }
+    else
+    {
+      std::exit(0);
+    }
   }
 
   return true;
