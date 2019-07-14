@@ -609,14 +609,23 @@ void VolumeVerifier::CheckMisc()
   {
     const u8 common_key = ticket.GetCommonKeyIndex();
 
-    if (common_key > 1)
+    if (m_volume.GetVolumeType() == Platform::WiiWAD &&
+        common_key > IOS::HLE::IOSC::COMMON_KEY_HANDLES.size())
     {
       // Many fakesigned WADs have the common key index set to a (random?) bogus value.
-      // For WADs, Dolphin will detect this and use common key 0 instead, making this low severity.
-      const Severity severity =
-          m_volume.GetVolumeType() == Platform::WiiWAD ? Severity::Low : Severity::High;
-      // i18n: This is "common" as in "shared", not the opposite of "uncommon"
-      AddProblem(severity, Common::GetStringT("This title is set to use an invalid common key."));
+      // Dolphin will detect this and use common key 0 instead, making this low severity.
+      AddProblem(Severity::Low,
+                 // i18n: This is "common" as in "shared", not the opposite of "uncommon"
+                 Common::GetStringT("This title is set to use an invalid common key."));
+    }
+
+    if (m_volume.GetVolumeType() != Platform::WiiWAD && common_key > 1)
+    {
+      // Dolphin does not fix incorrect common key indices for discs, so this is high severity.
+      // But unlike WADs, fakesigned discs essentially always have a working common key index.
+      AddProblem(Severity::High,
+                 // i18n: This is "common" as in "shared", not the opposite of "uncommon"
+                 Common::GetStringT("This title is set to use an invalid common key."));
     }
 
     if (common_key == 1 && region != Region::NTSC_K)

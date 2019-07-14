@@ -551,6 +551,12 @@ void IOSC::LoadDefaultEntries(ConsoleType console_type)
                                             0xf2, 0xfe, 0xfb, 0xba, 0x4c, 0x9b, 0x7e}},
                                           3};
 
+  m_key_entries[HANDLE_VWII_COMMON_KEY] = {TYPE_SECRET_KEY,
+                                           SUBTYPE_AES128,
+                                           {{0x30, 0xbf, 0xc7, 0x6e, 0x7c, 0x19, 0xaf, 0xbb, 0x23,
+                                             0x16, 0x33, 0x30, 0xce, 0xd7, 0xc2, 0x8d}},
+                                           3};
+
   m_root_key_entry = {TYPE_PUBLIC_KEY, SUBTYPE_RSA4096,
                       std::vector<u8>(ROOT_PUBLIC_KEY.begin(), ROOT_PUBLIC_KEY.end()),
                       Common::swap32(0x00010001), 0};

@@ -161,9 +161,14 @@ public:
     HANDLE_FS_VERSION = 10,
     // New common key (aka Korean common key)
     HANDLE_NEW_COMMON_KEY = 11,
+    // vWii common key. TODO: Does this actually use handle ID 12?
+    HANDLE_VWII_COMMON_KEY = 12,
 
     HANDLE_ROOT_KEY = 0xfffffff,
   };
+
+  static constexpr std::array<DefaultHandle, 3> COMMON_KEY_HANDLES = {
+      HANDLE_COMMON_KEY, HANDLE_NEW_COMMON_KEY, HANDLE_VWII_COMMON_KEY};
 
   enum ObjectType : u8
   {
