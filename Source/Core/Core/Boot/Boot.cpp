@@ -203,7 +203,17 @@ BootParameters::GenerateFromFile(std::vector<std::string> paths,
   if (extension == ".wad")
     return std::make_unique<BootParameters>(DiscIO::WiiWAD{std::move(path)}, savestate_path);
 
-  PanicAlertT("Could not recognize file %s", path.c_str());
+  if (extension == ".zip" || extension == ".rar" || extension == ".7z")
+  {
+    PanicAlertT("Could not read \"%s\".\n"
+                "\n"
+                "Dolphin does not support archive file formats such as ZIP, RAR or 7Z.",
+                path.c_str());
+  }
+  else
+  {
+    PanicAlertT("Could not recognize file %s", path.c_str());
+  }
   return {};
 }
 
