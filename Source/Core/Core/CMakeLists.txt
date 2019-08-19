@@ -191,6 +191,8 @@ add_library(core
   HW/DVD/DVDThread.h
   HW/DVD/FileMonitor.cpp
   HW/DVD/FileMonitor.h
+  HW/DVD/ReadSpeed.cpp
+  HW/DVD/ReadSpeed.h
   HW/EXI/EXI.cpp
   HW/EXI/EXI.h
   HW/EXI/EXI_Channel.cpp

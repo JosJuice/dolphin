@@ -132,6 +132,7 @@
     <ClCompile Include="HW\DVD\DVDMath.cpp" />
     <ClCompile Include="HW\DVD\DVDThread.cpp" />
     <ClCompile Include="HW\DVD\FileMonitor.cpp" />
+    <ClCompile Include="HW\DVD\ReadSpeed.cpp" />
     <ClCompile Include="HW\EXI\BBA-TAP\TAP_Win32.cpp" />
     <ClCompile Include="HW\EXI\EXI.cpp" />
     <ClCompile Include="HW\EXI\EXI_Channel.cpp" />
@@ -404,6 +405,7 @@
     <ClInclude Include="HW\DVD\DVDMath.h" />
     <ClInclude Include="HW\DVD\DVDThread.h" />
     <ClInclude Include="HW\DVD\FileMonitor.h" />
+    <ClInclude Include="HW\DVD\ReadSpeed.h" />
     <ClInclude Include="HW\EXI\BBA-TAP\TAP_Win32.h" />
     <ClInclude Include="HW\EXI\EXI.h" />
     <ClInclude Include="HW\EXI\EXI_Channel.h" />

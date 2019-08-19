@@ -25,6 +25,7 @@
 #include "Core/HW/AudioInterface.h"
 #include "Core/HW/DVD/DVDMath.h"
 #include "Core/HW/DVD/DVDThread.h"
+#include "Core/HW/DVD/ReadSpeed.h"
 #include "Core/HW/MMIO.h"
 #include "Core/HW/Memmap.h"
 #include "Core/HW/ProcessorInterface.h"
@@ -434,6 +435,8 @@ void Init()
 // This doesn't reset any inserted disc or the cover state.
 void Reset()
 {
+  ReadSpeed_Init();
+
   s_DISR.Hex = 0;
   s_DICMDBUF[0].Hex = 0;
   s_DICMDBUF[1].Hex = 0;
@@ -1171,6 +1174,7 @@ void FinishExecutingCommand(ReplyType reply_type, DIInterruptType interrupt_type
 
   case ReplyType::Interrupt:
   {
+    ASSERT_MSG(DVDINTERFACE, ReadSpeed_End(), "Disc read didn't end in time");
     if (s_DICR.TSTART)
     {
       s_DICR.TSTART = 0;
@@ -1182,6 +1186,7 @@ void FinishExecutingCommand(ReplyType reply_type, DIInterruptType interrupt_type
 
   case ReplyType::IOS:
   {
+    ASSERT_MSG(DVDINTERFACE, ReadSpeed_End(), "Disc read didn't end in time");
     auto di = IOS::HLE::GetIOS()->GetDeviceByName("/dev/di");
     if (di)
       std::static_pointer_cast<IOS::HLE::Device::DI>(di)->FinishIOCtl(interrupt_type);
@@ -1201,6 +1206,7 @@ void FinishExecutingCommand(ReplyType reply_type, DIInterruptType interrupt_type
 void ScheduleReads(u64 offset, u32 length, const DiscIO::Partition& partition, u32 output_address,
                    ReplyType reply_type)
 {
+  /*
   // The drive continues to read 1 MiB beyond the last read position when idle.
   // If a future read falls within this window, part of the read may be returned
   // from the buffer. Data can be transferred from the buffer at up to 32 MiB/s.
@@ -1398,6 +1404,12 @@ void ScheduleReads(u64 offset, u32 length, const DiscIO::Partition& partition, u
             "ticks=%" PRId64 ", time=%" PRId64 " us",
             unbuffered_blocks, buffered_blocks, ticks_until_completion,
             ticks_until_completion * 1000000 / SystemTimers::GetTicksPerSecond());
+  */
+
+  ReadSpeed_Start();
+  const s64 ticks_until_completion = static_cast<s64>(ReadSpeed_Setup(offset, length)) * 256;
+  DVDThread::StartReadToEmulatedRAM(output_address, offset, length, partition, reply_type,
+                                    ticks_until_completion);
 }
 
 }  // namespace DVDInterface
