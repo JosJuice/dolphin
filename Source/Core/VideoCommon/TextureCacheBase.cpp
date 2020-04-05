@@ -423,12 +423,10 @@ bool TextureCacheBase::CheckReadbackTexture(u32 width, u32 height, AbstractTextu
 void TextureCacheBase::SerializeTexture(AbstractTexture* tex, const TextureConfig& config,
                                         PointerWrap& p)
 {
-  // If we're in measure mode, skip the actual readback to save some time.
-  const bool skip_readback = p.GetMode() == PointerWrap::MODE_MEASURE;
   p.DoPOD(config);
 
   std::vector<u8> texture_data;
-  if (skip_readback || CheckReadbackTexture(config.width, config.height, config.format))
+  if (CheckReadbackTexture(config.width, config.height, config.format))
   {
     // Save out each layer of the texture to the staging texture, and then
     // append it onto the end of the vector. This gives us all the sub-images
@@ -440,15 +438,13 @@ void TextureCacheBase::SerializeTexture(AbstractTexture* tex, const TextureConfi
         u32 level_width = std::max(config.width >> level, 1u);
         u32 level_height = std::max(config.height >> level, 1u);
         auto rect = tex->GetConfig().GetMipRect(level);
-        if (!skip_readback)
-          m_readback_texture->CopyFromTexture(tex, rect, layer, level, rect);
+        m_readback_texture->CopyFromTexture(tex, rect, layer, level, rect);
 
         size_t stride = AbstractTexture::CalculateStrideForFormat(config.format, level_width);
         size_t size = stride * level_height;
         size_t start = texture_data.size();
         texture_data.resize(texture_data.size() + size);
-        if (!skip_readback)
-          m_readback_texture->ReadTexels(rect, &texture_data[start], static_cast<u32>(stride));
+        m_readback_texture->ReadTexels(rect, &texture_data[start], static_cast<u32>(stride));
       }
     }
   }
@@ -508,7 +504,7 @@ bool TextureCacheBase::DoState(PointerWrap& p)
 
   p.Do(last_entry_id);
 
-  if (p.GetMode() == PointerWrap::MODE_WRITE || p.GetMode() == PointerWrap::MODE_MEASURE)
+  if (p.GetMode() == PointerWrap::MODE_WRITE)
     return DoSaveState(p);
   else
     return DoLoadState(p);

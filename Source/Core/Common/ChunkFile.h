@@ -45,25 +45,24 @@ public:
   {
     MODE_READ = 1,  // load
     MODE_WRITE,     // save
-    MODE_MEASURE,   // calculate size
   };
 
-  u8** ptr;
-  Mode mode;
+  PointerWrap(std::vector<u8>* buffer, Mode mode) : m_buffer(buffer), m_mode(mode)
+  {
+    if (mode == MODE_READ)
+      buffer->clear();
+  }
 
-public:
-  PointerWrap(u8** ptr_, Mode mode_) : ptr(ptr_), mode(mode_) {}
-  void SetMode(Mode mode_) { mode = mode_; }
-  Mode GetMode() const { return mode; }
+  Mode GetMode() const { return m_mode; }
+
   template <typename K, class V>
   void Do(std::map<K, V>& x)
   {
     u32 count = (u32)x.size();
     Do(count);
 
-    switch (mode)
+    if (m_mode == MODE_READ)
     {
-    case MODE_READ:
       for (x.clear(); count != 0; --count)
       {
         std::pair<K, V> pair;
@@ -71,16 +70,14 @@ public:
         Do(pair.second);
         x.insert(pair);
       }
-      break;
-
-    case MODE_WRITE:
-    case MODE_MEASURE:
+    }
+    else
+    {
       for (auto& elem : x)
       {
         Do(elem.first);
         Do(elem.second);
       }
-      break;
     }
   }
 
@@ -90,24 +87,19 @@ public:
     u32 count = (u32)x.size();
     Do(count);
 
-    switch (mode)
+    if (m_mode == MODE_READ)
     {
-    case MODE_READ:
       for (x.clear(); count != 0; --count)
       {
         V value;
         Do(value);
         x.insert(value);
       }
-      break;
-
-    case MODE_WRITE:
-    case MODE_MEASURE:
+    }
+    else
+    {
       for (const V& val : x)
-      {
         Do(val);
-      }
-      break;
     }
   }
 
@@ -148,9 +140,8 @@ public:
     bool present = x.has_value();
     Do(present);
 
-    switch (mode)
+    if (m_mode == MODE_READ)
     {
-    case MODE_READ:
       if (present)
       {
         x = std::make_optional<T>();
@@ -160,14 +151,11 @@ public:
       {
         x = std::nullopt;
       }
-      break;
-
-    case MODE_WRITE:
-    case MODE_MEASURE:
+    }
+    else
+    {
       if (present)
         Do(x.value());
-
-      break;
     }
   }
 
@@ -200,7 +188,7 @@ public:
   {
     bool s = flag.IsSet();
     Do(s);
-    if (mode == MODE_READ)
+    if (m_mode == MODE_READ)
       flag.Set(s);
   }
 
@@ -209,7 +197,7 @@ public:
   {
     T temp = atomic.load();
     Do(temp);
-    if (mode == MODE_READ)
+    if (m_mode == MODE_READ)
       atomic.store(temp);
   }
 
@@ -239,7 +227,7 @@ public:
 
     Do(stable);
 
-    if (mode == MODE_READ)
+    if (m_mode == MODE_READ)
       x = stable != 0;
   }
 
@@ -250,10 +238,8 @@ public:
     // much range
     ptrdiff_t offset = x - base;
     Do(offset);
-    if (mode == MODE_READ)
-    {
+    if (m_mode == MODE_READ)
       x = base + offset;
-    }
   }
 
   [[nodiscard]] bool DoMarker(const std::string& prevName, u32 arbitraryNumber = 0x42)
@@ -261,7 +247,7 @@ public:
     u32 cookie = arbitraryNumber;
     Do(cookie);
 
-    if (mode == PointerWrap::MODE_READ && cookie != arbitraryNumber)
+    if (m_mode == PointerWrap::MODE_READ && cookie != arbitraryNumber)
     {
       PanicAlertT("Error: After \"%s\", found %d (0x%X) instead of save marker %d (0x%X). Aborting "
                   "savestate load...",
@@ -303,20 +289,20 @@ private:
 
   DOLPHIN_FORCE_INLINE void DoVoid(void* data, u32 size)
   {
-    switch (mode)
+    if (m_mode == MODE_READ)
     {
-    case MODE_READ:
-      memcpy(data, *ptr, size);
-      break;
-
-    case MODE_WRITE:
-      memcpy(*ptr, data, size);
-      break;
-
-    case MODE_MEASURE:
-      break;
+      memcpy(data, &(*m_buffer)[m_offset], size);
+    }
+    else
+    {
+      m_buffer->resize(m_buffer->size() + size);
+      memcpy(&(*m_buffer)[m_offset], data, size);
     }
 
-    *ptr += size;
+    m_offset += size;
   }
+
+  u64 m_offset = 0;
+  std::vector<u8>* m_buffer;
+  const Mode m_mode;
 };

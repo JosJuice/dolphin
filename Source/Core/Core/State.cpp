@@ -216,7 +216,7 @@ static bool DoState(PointerWrap& p)
   return true;
 }
 
-void LoadFromBuffer(std::vector<u8>& buffer)
+void LoadFromBuffer(std::vector<u8>* buffer)
 {
   if (NetPlay::IsNetPlayRunning())
   {
@@ -226,26 +226,17 @@ void LoadFromBuffer(std::vector<u8>& buffer)
 
   Core::RunOnCPUThread(
       [&] {
-        u8* ptr = &buffer[0];
-        PointerWrap p(&ptr, PointerWrap::MODE_READ);
+        PointerWrap p(buffer, PointerWrap::MODE_READ);
         DoState(p);
       },
       true);
 }
 
-void SaveToBuffer(std::vector<u8>& buffer)
+void SaveToBuffer(std::vector<u8>* buffer)
 {
   Core::RunOnCPUThread(
       [&] {
-        u8* ptr = nullptr;
-        PointerWrap p(&ptr, PointerWrap::MODE_MEASURE);
-
-        DoState(p);
-        const size_t buffer_size = reinterpret_cast<size_t>(ptr);
-        buffer.resize(buffer_size);
-
-        ptr = &buffer[0];
-        p.SetMode(PointerWrap::MODE_WRITE);
+        PointerWrap p(buffer, PointerWrap::MODE_WRITE);
         DoState(p);
       },
       true);
@@ -412,18 +403,9 @@ void SaveAs(const std::string& filename, bool wait)
 
   Core::RunOnCPUThread(
       [&] {
-        // Measure the size of the buffer.
-        u8* ptr = nullptr;
-        PointerWrap p(&ptr, PointerWrap::MODE_MEASURE);
-        DoState(p);
-        const size_t buffer_size = reinterpret_cast<size_t>(ptr);
-
-        // Then actually do the write.
         const bool success = [&]{
           std::lock_guard<std::mutex> lk(g_cs_current_buffer);
-          g_current_buffer.resize(buffer_size);
-          ptr = &g_current_buffer[0];
-          p.SetMode(PointerWrap::MODE_WRITE);
+          PointerWrap p(&g_current_buffer, PointerWrap::MODE_WRITE);
           return DoState(p);
         }();
 
@@ -567,7 +549,7 @@ void LoadAs(const std::string& filename)
         if (!Movie::IsJustStartingRecordingInputFromSaveState())
         {
           std::lock_guard<std::mutex> lk(g_cs_undo_load_buffer);
-          SaveToBuffer(g_undo_load_buffer);
+          SaveToBuffer(&g_undo_load_buffer);
           if (Movie::IsMovieActive())
             Movie::SaveRecording(File::GetUserPath(D_STATESAVES_IDX) + "undo.dtm");
           else if (File::Exists(File::GetUserPath(D_STATESAVES_IDX) + "undo.dtm"))
@@ -584,8 +566,7 @@ void LoadAs(const std::string& filename)
 
           if (!buffer.empty())
           {
-            u8* ptr = &buffer[0];
-            PointerWrap p(&ptr, PointerWrap::MODE_READ);
+            PointerWrap p(&buffer, PointerWrap::MODE_READ);
             loadedSuccessfully = DoState(p);
             loaded = true;
           }
@@ -710,7 +691,7 @@ void UndoLoadState()
   {
     if (File::Exists(File::GetUserPath(D_STATESAVES_IDX) + "undo.dtm") || (!Movie::IsMovieActive()))
     {
-      LoadFromBuffer(g_undo_load_buffer);
+      LoadFromBuffer(&g_undo_load_buffer);
       if (Movie::IsMovieActive())
         Movie::LoadInput(File::GetUserPath(D_STATESAVES_IDX) + "undo.dtm");
     }

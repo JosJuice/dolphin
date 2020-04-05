@@ -213,6 +213,12 @@ bool GameFileCache::Save()
 
 bool GameFileCache::SyncCacheFile(bool save)
 {
+  struct GameFileCacheHeader
+  {
+    u32 revision;
+    u64 expected_size;
+  };
+
   const char* open_mode = save ? "wb" : "rb";
   File::IOFile f(m_path, open_mode);
   if (!f)
@@ -220,28 +226,29 @@ bool GameFileCache::SyncCacheFile(bool save)
   bool success = false;
   if (save)
   {
-    // Measure the size of the buffer.
-    u8* ptr = nullptr;
-    PointerWrap p(&ptr, PointerWrap::MODE_MEASURE);
+    std::vector<u8> buffer;
+    PointerWrap p(&buffer, PointerWrap::MODE_WRITE);
     DoState(&p);
-    const size_t buffer_size = reinterpret_cast<size_t>(ptr);
-
-    // Then actually do the write.
-    std::vector<u8> buffer(buffer_size);
-    ptr = &buffer[0];
-    p.SetMode(PointerWrap::MODE_WRITE);
-    if (DoState(&p, buffer_size) && f.WriteBytes(buffer.data(), buffer.size()))
+    GameFileCacheHeader header{CACHE_REVISION, buffer.size()};
+    if (f.WriteArray(&header, 1) && f.WriteBytes(buffer.data(), buffer.size()))
       success = true;
   }
   else
   {
-    std::vector<u8> buffer(f.GetSize());
-    if (!buffer.empty() && f.ReadBytes(buffer.data(), buffer.size()))
+    GameFileCacheHeader header;
+    if (f.ReadArray(&header, 1))
     {
-      u8* ptr = buffer.data();
-      PointerWrap p(&ptr, PointerWrap::MODE_READ);
-      if (DoState(&p, buffer.size()))
-        success = true;
+      const u64 file_size = f.GetSize();
+      if (header.revision == CACHE_REVISION && header.expected_size == file_size)
+      {
+        std::vector<u8> buffer(file_size - sizeof(GameFileCacheHeader));
+        if (f.ReadBytes(buffer.data(), buffer.size()))
+        {
+          PointerWrap p(&buffer, PointerWrap::MODE_READ);
+          DoState(&p);
+          success = true;
+        }
+      }
     }
   }
   if (!success)
@@ -253,25 +260,13 @@ bool GameFileCache::SyncCacheFile(bool save)
   return success;
 }
 
-bool GameFileCache::DoState(PointerWrap* p, u64 size)
+void GameFileCache::DoState(PointerWrap* p)
 {
-  struct
-  {
-    u32 revision;
-    u64 expected_size;
-  } header = {CACHE_REVISION, size};
-  p->Do(header);
-  if (p->GetMode() == PointerWrap::MODE_READ)
-  {
-    if (header.revision != CACHE_REVISION || header.expected_size != size)
-      return false;
-  }
   p->DoEachElement(m_cached_files, [](PointerWrap& state, std::shared_ptr<GameFile>& elem) {
     if (state.GetMode() == PointerWrap::MODE_READ)
       elem = std::make_shared<GameFile>();
     elem->DoState(state);
   });
-  return true;
 }
 
 }  // namespace UICommon

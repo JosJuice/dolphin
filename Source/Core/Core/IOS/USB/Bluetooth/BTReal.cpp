@@ -271,11 +271,9 @@ bool BluetoothReal::DoState(PointerWrap& p)
     return false;
   }
 
-  // Prevent the transfer callbacks from messing with m_current_transfers after we have started
-  // writing a savestate. We cannot use a scoped lock here because DoState is called twice and
-  // we would lose the lock between the two calls.
-  if (p.GetMode() == PointerWrap::MODE_MEASURE)
-    m_transfers_mutex.lock();
+  // Prevent the transfer callbacks from messing with m_current_transfers
+  // after we have started writing a savestate.
+  std::lock_guard<std::mutex> lk(m_transfers_mutex);
 
   std::vector<u32> addresses_to_discard;
   if (p.GetMode() != PointerWrap::MODE_READ)
@@ -309,10 +307,6 @@ bool BluetoothReal::DoState(PointerWrap& p)
                     OSD::Duration::VERY_LONG);
     s_has_shown_savestate_warning = true;
   }
-
-  // We have finished the savestate now, so the transfers mutex can be unlocked.
-  if (p.GetMode() == PointerWrap::MODE_WRITE)
-    m_transfers_mutex.unlock();
 
   return true;
 }
