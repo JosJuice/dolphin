@@ -141,11 +141,10 @@ static bool DoStateVersion(PointerWrap& p, std::string* version_created_by)
     return false;
   }
 
-  p.DoMarker("Version");
-  return true;
+  return p.DoMarker("Version");
 }
 
-static void DoState(PointerWrap& p)
+static bool DoState(PointerWrap& p)
 {
   std::string version_created_by;
   if (!DoStateVersion(p, &version_created_by))
@@ -155,8 +154,7 @@ static void DoState(PointerWrap& p)
             "This savestate was created using an incompatible version of Dolphin" :
             "This savestate was created using the incompatible version " + version_created_by;
     Core::DisplayMessage(message, OSD::Duration::NORMAL);
-    p.SetMode(PointerWrap::MODE_MEASURE);
-    return;
+    return false;
   }
 
   bool is_wii = SConfig::GetInstance().bWii || SConfig::GetInstance().m_is_mios;
@@ -167,37 +165,55 @@ static void DoState(PointerWrap& p)
     OSD::AddMessage(fmt::format("Cannot load a savestate created under {} mode in {} mode",
                                 is_wii ? "Wii" : "GC", is_wii_currently ? "Wii" : "GC"),
                     OSD::Duration::NORMAL, OSD::Color::RED);
-    p.SetMode(PointerWrap::MODE_MEASURE);
-    return;
+    return false;
   }
 
   // Movie must be done before the video backend, because the window is redrawn in the video backend
   // state load, and the frame number must be up-to-date.
   Movie::DoState(p);
-  p.DoMarker("Movie");
+  if (!p.DoMarker("Movie"))
+    return false;
 
   // Begin with video backend, so that it gets a chance to clear its caches and writeback modified
   // things to RAM
-  g_video_backend->DoState(p);
-  p.DoMarker("video_backend");
+  if (!g_video_backend->DoState(p))
+    return false;
+  if (!p.DoMarker("video_backend"))
+    return false;
 
   PowerPC::DoState(p);
-  p.DoMarker("PowerPC");
+  if (!p.DoMarker("PowerPC"))
+    return false;
+
   // CoreTiming needs to be restored before restoring Hardware because
   // the controller code might need to schedule an event if the controller has changed.
-  CoreTiming::DoState(p);
-  p.DoMarker("CoreTiming");
-  HW::DoState(p);
-  p.DoMarker("HW");
+  if (!CoreTiming::DoState(p))
+    return false;
+  if (!p.DoMarker("CoreTiming"))
+    return false;
+
+  if (!HW::DoState(p))
+    return false;
+  if (!p.DoMarker("HW"))
+    return false;
+
   if (SConfig::GetInstance().bWii)
-    Wiimote::DoState(p);
-  p.DoMarker("Wiimote");
+  {
+    if (!Wiimote::DoState(p))
+      return false;
+  }
+  if (!p.DoMarker("Wiimote"))
+    return false;
+
   Gecko::DoState(p);
-  p.DoMarker("Gecko");
+  if (!p.DoMarker("Gecko"))
+    return false;
 
 #if defined(HAVE_FFMPEG)
   FrameDump::DoState();
 #endif
+
+  return true;
 }
 
 void LoadFromBuffer(std::vector<u8>& buffer)
@@ -403,15 +419,15 @@ void SaveAs(const std::string& filename, bool wait)
         const size_t buffer_size = reinterpret_cast<size_t>(ptr);
 
         // Then actually do the write.
-        {
+        const bool success = [&]{
           std::lock_guard<std::mutex> lk(g_cs_current_buffer);
           g_current_buffer.resize(buffer_size);
           ptr = &g_current_buffer[0];
           p.SetMode(PointerWrap::MODE_WRITE);
-          DoState(p);
-        }
+          return DoState(p);
+        }();
 
-        if (p.GetMode() == PointerWrap::MODE_WRITE)
+        if (success)
         {
           Core::DisplayMessage("Saving State...", 1000);
 
@@ -570,9 +586,8 @@ void LoadAs(const std::string& filename)
           {
             u8* ptr = &buffer[0];
             PointerWrap p(&ptr, PointerWrap::MODE_READ);
-            DoState(p);
+            loadedSuccessfully = DoState(p);
             loaded = true;
-            loadedSuccessfully = (p.GetMode() == PointerWrap::MODE_READ);
           }
         }
 

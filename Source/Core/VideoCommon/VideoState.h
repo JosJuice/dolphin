@@ -6,4 +6,4 @@
 
 class PointerWrap;
 
-void VideoCommon_DoState(PointerWrap& p);
+[[nodiscard]] bool VideoCommon_DoState(PointerWrap& p);

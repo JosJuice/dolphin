@@ -36,7 +36,7 @@ public:
   IPCCommandResult Open(const OpenRequest& request) override;
 
   void UpdateWantDeterminism(bool new_want_determinism) override;
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
 protected:
   enum class ChangeEvent

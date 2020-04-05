@@ -40,7 +40,7 @@ public:
   static void InterruptFromDVDInterface(DVDInterface::DIInterruptType interrupt_type);
   static DiscIO::Partition GetCurrentPartition();
 
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
   IPCCommandResult Open(const OpenRequest& request) override;
   IPCCommandResult IOCtl(const IOCtlRequest& request) override;

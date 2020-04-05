@@ -24,7 +24,7 @@ class SDIOSlot0 : public Device
 public:
   SDIOSlot0(Kernel& ios, const std::string& device_name);
 
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
   IPCCommandResult Open(const OpenRequest& request) override;
   IPCCommandResult Close(u32 fd) override;

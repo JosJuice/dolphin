@@ -342,9 +342,10 @@ void ES::Context::DoState(PointerWrap& p)
   p.Do(ipc_fd);
 }
 
-void ES::DoState(PointerWrap& p)
+bool ES::DoState(PointerWrap& p)
 {
-  Device::DoState(p);
+  if (!Device::DoState(p))
+    return false;
 
   for (auto& entry : m_content_table)
   {
@@ -359,6 +360,8 @@ void ES::DoState(PointerWrap& p)
 
   for (auto& context : m_contexts)
     context.DoState(p);
+
+  return true;
 }
 
 ES::ContextArray::iterator ES::FindActiveContext(s32 fd)

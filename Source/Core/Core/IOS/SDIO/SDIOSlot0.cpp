@@ -27,7 +27,7 @@ SDIOSlot0::SDIOSlot0(Kernel& ios, const std::string& device_name)
 {
 }
 
-void SDIOSlot0::DoState(PointerWrap& p)
+bool SDIOSlot0::DoState(PointerWrap& p)
 {
   DoStateShared(p);
   if (p.GetMode() == PointerWrap::MODE_READ)
@@ -40,6 +40,7 @@ void SDIOSlot0::DoState(PointerWrap& p)
   p.Do(m_registers);
   p.Do(m_protocol);
   p.Do(m_sdhc_supported);
+  return true;
 }
 
 void SDIOSlot0::EventNotify()

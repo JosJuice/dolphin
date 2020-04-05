@@ -17,9 +17,9 @@ IPCCommandResult BluetoothStub::Open(const OpenRequest& request)
   return GetDefaultReply(IPC_ENOENT);
 }
 
-void BluetoothStub::DoState(PointerWrap& p)
+bool BluetoothStub::DoState(PointerWrap& p)
 {
   Core::DisplayMessage("The current IPC_HLE_Device_usb is a stub. Aborting load.", 4000);
-  p.SetMode(PointerWrap::MODE_VERIFY);
+  return false;
 }
 }  // namespace IOS::HLE::Device

@@ -67,7 +67,7 @@ void RegisterMMIO(MMIO::Mapping* mmio, u32 base);
 
 DSPEmulator* GetDSPEmulator();
 
-void DoState(PointerWrap& p);
+[[nodiscard]] bool DoState(PointerWrap& p);
 
 // TODO: Maybe rethink this? The timing is unpredictable.
 void GenerateDSPInterruptFromDSPEmu(DSPInterruptType type, int cycles_into_future = 0);

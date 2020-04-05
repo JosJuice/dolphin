@@ -80,7 +80,7 @@ WiimoteDevice::WiimoteDevice(Device::BluetoothEmu* host, int number, bdaddr_t bd
   m_lmp_subversion = 0x229;
 }
 
-void WiimoteDevice::DoState(PointerWrap& p)
+bool WiimoteDevice::DoState(PointerWrap& p)
 {
   bool passthrough_bluetooth = false;
   p.Do(passthrough_bluetooth);
@@ -88,8 +88,7 @@ void WiimoteDevice::DoState(PointerWrap& p)
   {
     Core::DisplayMessage("State needs Bluetooth passthrough to be enabled. Aborting load state.",
                          3000);
-    p.SetMode(PointerWrap::MODE_VERIFY);
-    return;
+    return false;
   }
 
   // this function is usually not called... see Device::BluetoothEmu::DoState
@@ -115,6 +114,8 @@ void WiimoteDevice::DoState(PointerWrap& p)
   p.Do(m_name);
 
   p.Do(m_channel);
+
+  return true;
 }
 
 //

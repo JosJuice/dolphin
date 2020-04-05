@@ -74,7 +74,7 @@ public:
   IPCCommandResult IOCtl(const IOCtlRequest& request) override = 0;
   IPCCommandResult IOCtlV(const IOCtlVRequest& request) override = 0;
 
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
 protected:
   struct USBV5Device;

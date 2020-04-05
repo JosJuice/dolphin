@@ -54,7 +54,7 @@ void USBHost::UpdateWantDeterminism(const bool new_want_determinism)
     StartThreads();
 }
 
-void USBHost::DoState(PointerWrap& p)
+bool USBHost::DoState(PointerWrap& p)
 {
   if (IsOpened() && p.GetMode() == PointerWrap::MODE_READ)
   {
@@ -62,6 +62,8 @@ void USBHost::DoState(PointerWrap& p)
     // already plugged in, and which need to be triggered.
     UpdateDevices(true);
   }
+
+  return true;
 }
 
 bool USBHost::AddDevice(std::unique_ptr<USB::Device> device)

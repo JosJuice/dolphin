@@ -77,35 +77,61 @@ void Shutdown()
   CoreTiming::Shutdown();
 }
 
-void DoState(PointerWrap& p)
+bool DoState(PointerWrap& p)
 {
-  Memory::DoState(p);
-  p.DoMarker("Memory");
+  if (!Memory::DoState(p))
+    return false;
+  if (!p.DoMarker("Memory"))
+    return false;
+
   VideoInterface::DoState(p);
-  p.DoMarker("VideoInterface");
+  if (!p.DoMarker("VideoInterface"))
+    return false;
+
   SerialInterface::DoState(p);
-  p.DoMarker("SerialInterface");
+  if (!p.DoMarker("SerialInterface"))
+    return false;
+
   ProcessorInterface::DoState(p);
-  p.DoMarker("ProcessorInterface");
-  DSP::DoState(p);
-  p.DoMarker("DSP");
+  if (!p.DoMarker("ProcessorInterface"))
+    return false;
+
+  if (!DSP::DoState(p))
+    return false;
+  if (!p.DoMarker("DSP"))
+    return false;
+
   DVDInterface::DoState(p);
-  p.DoMarker("DVDInterface");
+  if (!p.DoMarker("DVDInterface"))
+    return false;
+
   GPFifo::DoState(p);
-  p.DoMarker("GPFifo");
+  if (!p.DoMarker("GPFifo"))
+    return false;
+
   ExpansionInterface::DoState(p);
-  p.DoMarker("ExpansionInterface");
+  if (!p.DoMarker("ExpansionInterface"))
+    return false;
+
   AudioInterface::DoState(p);
-  p.DoMarker("AudioInterface");
+  if (!p.DoMarker("AudioInterface"))
+    return false;
 
   if (SConfig::GetInstance().bWii)
   {
     IOS::DoState(p);
-    p.DoMarker("IOS");
-    IOS::HLE::GetIOS()->DoState(p);
-    p.DoMarker("IOS::HLE");
+    if (!p.DoMarker("IOS"))
+      return false;
+
+    if (!IOS::HLE::GetIOS()->DoState(p))
+      return false;
+    if (!p.DoMarker("IOS::HLE"))
+      return false;
   }
 
-  p.DoMarker("WIIHW");
+  if (!p.DoMarker("WIIHW"))
+    return false;
+
+  return true;
 }
 }  // namespace HW

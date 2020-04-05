@@ -91,7 +91,7 @@ void DSPHLE::SwapUCode(u32 crc)
   }
 }
 
-void DSPHLE::DoState(PointerWrap& p)
+bool DSPHLE::DoState(PointerWrap& p)
 {
   bool is_hle = true;
   p.Do(is_hle);
@@ -99,8 +99,7 @@ void DSPHLE::DoState(PointerWrap& p)
   {
     Core::DisplayMessage("State is incompatible with current DSP engine. Aborting load state.",
                          3000);
-    p.SetMode(PointerWrap::MODE_VERIFY);
-    return;
+    return false;
   }
 
   p.DoPOD(m_dsp_control);
@@ -131,6 +130,8 @@ void DSPHLE::DoState(PointerWrap& p)
   m_last_ucode = std::move(last_ucode);
 
   m_mail_handler.DoState(p);
+
+  return true;
 }
 
 // Mailbox functions

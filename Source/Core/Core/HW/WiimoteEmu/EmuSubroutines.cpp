@@ -546,7 +546,7 @@ bool Wiimote::ProcessReadDataRequest()
   return true;
 }
 
-void Wiimote::DoState(PointerWrap& p)
+bool Wiimote::DoState(PointerWrap& p)
 {
   // No need to sync. Index will not change.
   // p.Do(m_index);
@@ -594,7 +594,7 @@ void Wiimote::DoState(PointerWrap& p)
   // We'll consider the IMU state part of the user's physical controller state and not sync it.
   // (m_imu_cursor_state)
 
-  p.DoMarker("Wiimote");
+  return p.DoMarker("Wiimote");
 }
 
 ExtensionNumber Wiimote::GetActiveExtensionNumber() const

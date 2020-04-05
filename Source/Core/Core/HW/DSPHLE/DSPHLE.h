@@ -26,7 +26,7 @@ public:
   bool Initialize(bool wii, bool dsp_thread) override;
   void Shutdown() override;
   bool IsLLE() const override { return false; }
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
   void PauseAndLock(bool do_lock, bool unpause_on_unlock = true) override;
 
   void DSP_WriteMailBoxHigh(bool cpu_mailbox, u16 value) override;

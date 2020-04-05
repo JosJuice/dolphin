@@ -10,5 +10,5 @@ namespace HW
 {
 void Init();
 void Shutdown();
-void DoState(PointerWrap& p);
+[[nodiscard]] bool DoState(PointerWrap& p);
 }  // namespace HW

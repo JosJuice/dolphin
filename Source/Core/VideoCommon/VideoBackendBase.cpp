@@ -257,13 +257,10 @@ void VideoBackendBase::PopulateBackendInfo()
   g_Config.Refresh();
 }
 
-void VideoBackendBase::DoState(PointerWrap& p)
+bool VideoBackendBase::DoState(PointerWrap& p)
 {
   if (!SConfig::GetInstance().bCPUThread)
-  {
-    VideoCommon_DoState(p);
-    return;
-  }
+    return VideoCommon_DoState(p);
 
   AsyncRequests::Event ev = {};
   ev.do_save_state.p = &p;
@@ -273,6 +270,8 @@ void VideoBackendBase::DoState(PointerWrap& p)
   // Let the GPU thread sleep after loading the state, so we're not spinning if paused after loading
   // a state. The next GP burst will wake it up again.
   Fifo::GpuMaySleep();
+
+  return AsyncRequests::GetInstance()->WasLastDoStateSuccessful();
 }
 
 void VideoBackendBase::InitializeShared()

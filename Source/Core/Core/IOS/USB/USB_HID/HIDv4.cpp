@@ -122,7 +122,7 @@ s32 USB_HIDv4::SubmitTransfer(USB::Device& device, const IOCtlRequest& request)
   }
 }
 
-void USB_HIDv4::DoState(PointerWrap& p)
+bool USB_HIDv4::DoState(PointerWrap& p)
 {
   p.Do(m_devicechange_first_call);
   u32 hook_address = m_devicechange_hook_request ? m_devicechange_hook_request->address : 0;
@@ -135,7 +135,7 @@ void USB_HIDv4::DoState(PointerWrap& p)
   p.Do(m_ios_ids);
   p.Do(m_device_ids);
 
-  USBHost::DoState(p);
+  return USBHost::DoState(p);
 }
 
 std::shared_ptr<USB::Device> USB_HIDv4::GetDeviceByIOSID(const s32 ios_id) const

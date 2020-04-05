@@ -47,7 +47,7 @@ typedef void (*TimedCallback)(u64 userdata, s64 cyclesLate);
 u64 GetTicks();
 u64 GetIdleTicks();
 
-void DoState(PointerWrap& p);
+[[nodiscard]] bool DoState(PointerWrap& p);
 
 struct EventType;
 

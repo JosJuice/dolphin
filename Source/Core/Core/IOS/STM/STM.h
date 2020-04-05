@@ -53,7 +53,7 @@ public:
   using Device::Device;
   ~STMEventHook() override;
   IPCCommandResult IOCtl(const IOCtlRequest& request) override;
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
   bool HasHookInstalled() const;
   void ResetButton() const;

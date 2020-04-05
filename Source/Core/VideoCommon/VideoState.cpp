@@ -22,67 +22,80 @@
 #include "VideoCommon/VideoState.h"
 #include "VideoCommon/XFMemory.h"
 
-void VideoCommon_DoState(PointerWrap& p)
+bool VideoCommon_DoState(PointerWrap& p)
 {
   bool software = false;
   p.Do(software);
 
   if (p.GetMode() == PointerWrap::MODE_READ && software == true)
-  {
-    // change mode to abort load of incompatible save state.
-    p.SetMode(PointerWrap::MODE_VERIFY);
-  }
+    return false;
 
   // BP Memory
   p.Do(bpmem);
-  p.DoMarker("BP Memory");
+  if (!p.DoMarker("BP Memory"))
+    return false;
 
   // CP Memory
-  DoCPState(p);
+  if (!DoCPState(p))
+    return false;
 
   // XF Memory
   p.Do(xfmem);
-  p.DoMarker("XF Memory");
+  if (!p.DoMarker("XF Memory"))
+    return false;
 
   // Texture decoder
   p.DoArray(texMem);
-  p.DoMarker("texMem");
+  if (!p.DoMarker("texMem"))
+    return false;
 
   // FIFO
   Fifo::DoState(p);
-  p.DoMarker("Fifo");
+  if (!p.DoMarker("Fifo"))
+    return false;
 
   CommandProcessor::DoState(p);
-  p.DoMarker("CommandProcessor");
+  if (!p.DoMarker("CommandProcessor"))
+    return false;
 
   PixelEngine::DoState(p);
-  p.DoMarker("PixelEngine");
+  if (!p.DoMarker("PixelEngine"))
+    return false;
 
   // the old way of replaying current bpmem as writes to push side effects to pixel shader manager
   // doesn't really work.
   PixelShaderManager::DoState(p);
-  p.DoMarker("PixelShaderManager");
+  if (!p.DoMarker("PixelShaderManager"))
+    return false;
 
   VertexShaderManager::DoState(p);
-  p.DoMarker("VertexShaderManager");
+  if (!p.DoMarker("VertexShaderManager"))
+    return false;
 
   GeometryShaderManager::DoState(p);
-  p.DoMarker("GeometryShaderManager");
+  if (!p.DoMarker("GeometryShaderManager"))
+    return false;
 
   g_vertex_manager->DoState(p);
-  p.DoMarker("VertexManager");
+  if (!p.DoMarker("VertexManager"))
+    return false;
 
   BoundingBox::DoState(p);
-  p.DoMarker("BoundingBox");
+  if (!p.DoMarker("BoundingBox"))
+    return false;
 
   g_framebuffer_manager->DoState(p);
-  p.DoMarker("FramebufferManager");
+  if (!p.DoMarker("FramebufferManager"))
+    return false;
 
-  g_texture_cache->DoState(p);
-  p.DoMarker("TextureCache");
+  if (!g_texture_cache->DoState(p))
+    return false;
+  if (!p.DoMarker("TextureCache"))
+    return false;
 
   g_renderer->DoState(p);
-  p.DoMarker("Renderer");
+  if (!p.DoMarker("Renderer"))
+    return false;
 
   // Refresh state.
   if (p.GetMode() == PointerWrap::MODE_READ)
@@ -90,4 +103,6 @@ void VideoCommon_DoState(PointerWrap& p)
     // Inform backend of new state from registers.
     BPReload();
   }
+
+  return true;
 }

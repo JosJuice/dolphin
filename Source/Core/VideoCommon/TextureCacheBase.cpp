@@ -501,7 +501,7 @@ std::optional<TextureCacheBase::TexPoolEntry> TextureCacheBase::DeserializeTextu
   return tex;
 }
 
-void TextureCacheBase::DoState(PointerWrap& p)
+bool TextureCacheBase::DoState(PointerWrap& p)
 {
   // Flush all pending XFB copies before either loading or saving.
   FlushEFBCopies();
@@ -509,12 +509,12 @@ void TextureCacheBase::DoState(PointerWrap& p)
   p.Do(last_entry_id);
 
   if (p.GetMode() == PointerWrap::MODE_WRITE || p.GetMode() == PointerWrap::MODE_MEASURE)
-    DoSaveState(p);
+    return DoSaveState(p);
   else
-    DoLoadState(p);
+    return DoLoadState(p);
 }
 
-void TextureCacheBase::DoSaveState(PointerWrap& p)
+bool TextureCacheBase::DoSaveState(PointerWrap& p)
 {
   std::map<const TCacheEntry*, u32> entry_map;
   std::vector<TCacheEntry*> entries_to_save;
@@ -573,7 +573,8 @@ void TextureCacheBase::DoSaveState(PointerWrap& p)
     SerializeTexture(entry->texture.get(), entry->texture->GetConfig(), p);
     entry->DoState(p);
   }
-  p.DoMarker("TextureCacheEntries");
+  if (!p.DoMarker("TextureCacheEntries"))
+    return false;
 
   // Save references for each cache entry.
   // As references are circular, we need to have everything created before linking entries.
@@ -625,9 +626,11 @@ void TextureCacheBase::DoSaveState(PointerWrap& p)
   // Free the readback texture to potentially save host-mapped GPU memory, depending on where
   // the driver mapped the staging buffer.
   m_readback_texture.reset();
+
+  return true;
 }
 
-void TextureCacheBase::DoLoadState(PointerWrap& p)
+bool TextureCacheBase::DoLoadState(PointerWrap& p)
 {
   // Helper for getting a cache entry from an ID.
   std::map<u32, TCacheEntry*> id_map;
@@ -659,7 +662,8 @@ void TextureCacheBase::DoLoadState(PointerWrap& p)
     else
       delete entry;
   }
-  p.DoMarker("TextureCacheEntries");
+  if (!p.DoMarker("TextureCacheEntries"))
+    return false;
 
   // Link all cache entry references.
   p.Do(size);
@@ -701,6 +705,8 @@ void TextureCacheBase::DoLoadState(PointerWrap& p)
     if (entry)
       entry->textures_by_hash_iter = textures_by_hash.emplace(hash, entry);
   }
+
+  return true;
 }
 
 void TextureCacheBase::TCacheEntry::DoState(PointerWrap& p)

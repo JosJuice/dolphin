@@ -268,6 +268,6 @@ void LoadCPReg(u32 SubCmd, u32 Value, bool is_preprocess = false);
 // Fills memory with data from CP regs
 void FillCPMemoryArray(u32* memory);
 
-void DoCPState(PointerWrap& p);
+[[nodiscard]] bool DoCPState(PointerWrap& p);
 
 void CopyPreprocessCPStateFromMain();

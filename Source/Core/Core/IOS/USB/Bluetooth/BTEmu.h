@@ -58,7 +58,7 @@ public:
 
   WiimoteDevice* AccessWiimoteByIndex(std::size_t index);
 
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
 private:
   std::vector<WiimoteDevice> m_wiimotes;

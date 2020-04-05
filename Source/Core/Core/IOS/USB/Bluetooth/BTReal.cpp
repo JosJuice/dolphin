@@ -261,21 +261,20 @@ IPCCommandResult BluetoothReal::IOCtlV(const IOCtlVRequest& request)
 }
 
 static bool s_has_shown_savestate_warning = false;
-void BluetoothReal::DoState(PointerWrap& p)
+bool BluetoothReal::DoState(PointerWrap& p)
 {
   bool passthrough_bluetooth = true;
   p.Do(passthrough_bluetooth);
   if (!passthrough_bluetooth && p.GetMode() == PointerWrap::MODE_READ)
   {
     Core::DisplayMessage("State needs Bluetooth passthrough to be disabled. Aborting load.", 4000);
-    p.SetMode(PointerWrap::MODE_VERIFY);
-    return;
+    return false;
   }
 
   // Prevent the transfer callbacks from messing with m_current_transfers after we have started
   // writing a savestate. We cannot use a scoped lock here because DoState is called twice and
   // we would lose the lock between the two calls.
-  if (p.GetMode() == PointerWrap::MODE_MEASURE || p.GetMode() == PointerWrap::MODE_VERIFY)
+  if (p.GetMode() == PointerWrap::MODE_MEASURE)
     m_transfers_mutex.lock();
 
   std::vector<u32> addresses_to_discard;
@@ -314,6 +313,8 @@ void BluetoothReal::DoState(PointerWrap& p)
   // We have finished the savestate now, so the transfers mutex can be unlocked.
   if (p.GetMode() == PointerWrap::MODE_WRITE)
     m_transfers_mutex.unlock();
+
+  return true;
 }
 
 void BluetoothReal::UpdateSyncButtonState(const bool is_held)

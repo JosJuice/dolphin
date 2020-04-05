@@ -684,7 +684,7 @@ void Kernel::SDIO_EventNotify()
     CoreTiming::ScheduleEvent(0, s_event_sdio_notify, 0, CoreTiming::FromThread::NON_CPU);
 }
 
-void Kernel::DoState(PointerWrap& p)
+bool Kernel::DoState(PointerWrap& p)
 {
   p.Do(m_request_queue);
   p.Do(m_reply_queue);
@@ -697,7 +697,7 @@ void Kernel::DoState(PointerWrap& p)
   m_fs->DoState(p);
 
   if (m_title_id == Titles::MIOS)
-    return;
+    return true;
 
   // We need to make sure all file handles are closed so IOS::HLE::Device::FS::DoState can
   // successfully save or re-create /tmp
@@ -708,7 +708,10 @@ void Kernel::DoState(PointerWrap& p)
   }
 
   for (const auto& entry : m_device_map)
-    entry.second->DoState(p);
+  {
+    if (!entry.second->DoState(p))
+      return false;
+  }
 
   if (p.GetMode() == PointerWrap::MODE_READ)
   {
@@ -731,7 +734,8 @@ void Kernel::DoState(PointerWrap& p)
         }
         case Device::Device::DeviceType::OH0:
           m_fdmap[i] = std::make_shared<Device::OH0Device>(*this, "");
-          m_fdmap[i]->DoState(p);
+          if (!m_fdmap[i]->DoState(p))
+            return false;
           break;
         }
       }
@@ -754,11 +758,14 @@ void Kernel::DoState(PointerWrap& p)
         }
         else
         {
-          descriptor->DoState(p);
+          if (!descriptor->DoState(p))
+            return false;
         }
       }
     }
   }
+
+  return true;
 }
 
 IOSC& Kernel::GetIOSC()

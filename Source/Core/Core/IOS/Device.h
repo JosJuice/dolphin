@@ -179,7 +179,7 @@ public:
   virtual ~Device() = default;
   // Release any resources which might interfere with savestating.
   virtual void PrepareForState(PointerWrap::Mode mode) {}
-  virtual void DoState(PointerWrap& p);
+  [[nodiscard]] virtual bool DoState(PointerWrap& p);
   void DoStateShared(PointerWrap& p);
 
   const std::string& GetDeviceName() const { return m_name; }

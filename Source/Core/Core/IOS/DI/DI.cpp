@@ -48,7 +48,7 @@ DI::DI(Kernel& ios, const std::string& device_name) : Device(ios, device_name)
 {
 }
 
-void DI::DoState(PointerWrap& p)
+bool DI::DoState(PointerWrap& p)
 {
   DoStateShared(p);
   p.Do(m_commands_to_execute);
@@ -56,6 +56,8 @@ void DI::DoState(PointerWrap& p)
   p.Do(m_current_partition);
   p.Do(m_has_initialized);
   p.Do(m_last_length);
+
+  return true;
 }
 
 IPCCommandResult DI::Open(const OpenRequest& request)

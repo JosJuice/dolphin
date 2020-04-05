@@ -46,7 +46,6 @@ public:
     MODE_READ = 1,  // load
     MODE_WRITE,     // save
     MODE_MEASURE,   // calculate size
-    MODE_VERIFY,    // compare
   };
 
   u8** ptr;
@@ -76,7 +75,6 @@ public:
 
     case MODE_WRITE:
     case MODE_MEASURE:
-    case MODE_VERIFY:
       for (auto& elem : x)
       {
         Do(elem.first);
@@ -105,7 +103,6 @@ public:
 
     case MODE_WRITE:
     case MODE_MEASURE:
-    case MODE_VERIFY:
       for (const V& val : x)
       {
         Do(val);
@@ -167,7 +164,6 @@ public:
 
     case MODE_WRITE:
     case MODE_MEASURE:
-    case MODE_VERIFY:
       if (present)
         Do(x.value());
 
@@ -260,7 +256,7 @@ public:
     }
   }
 
-  void DoMarker(const std::string& prevName, u32 arbitraryNumber = 0x42)
+  [[nodiscard]] bool DoMarker(const std::string& prevName, u32 arbitraryNumber = 0x42)
   {
     u32 cookie = arbitraryNumber;
     Do(cookie);
@@ -270,8 +266,10 @@ public:
       PanicAlertT("Error: After \"%s\", found %d (0x%X) instead of save marker %d (0x%X). Aborting "
                   "savestate load...",
                   prevName.c_str(), cookie, cookie, arbitraryNumber, arbitraryNumber);
-      mode = PointerWrap::MODE_MEASURE;
+      return false;
     }
+
+    return true;
   }
 
   template <typename T, typename Functor>
@@ -316,12 +314,6 @@ private:
       break;
 
     case MODE_MEASURE:
-      break;
-
-    case MODE_VERIFY:
-      DEBUG_ASSERT_MSG(COMMON, !memcmp(data, *ptr, size),
-                       "Savestate verification failure: buf %p != %p (size %u).\n", data, *ptr,
-                       size);
       break;
     }
 

@@ -132,7 +132,7 @@ public:
   bool CheckForButtonPress();
   void Reset();
 
-  void DoState(PointerWrap& p);
+  [[nodiscard]] bool DoState(PointerWrap& p);
 
   // Active extension number is exposed for TAS.
   ExtensionNumber GetActiveExtensionNumber() const;

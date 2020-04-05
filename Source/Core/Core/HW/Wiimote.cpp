@@ -262,7 +262,7 @@ void Update(int number, bool connected)
 }
 
 // Save/Load state
-void DoState(PointerWrap& p)
+bool DoState(PointerWrap& p)
 {
   for (int i = 0; i < MAX_BBMOTES; ++i)
   {
@@ -273,7 +273,8 @@ void DoState(PointerWrap& p)
     if (WiimoteSource(state_wiimote_source) == WiimoteSource::Emulated)
     {
       // Sync complete state of emulated wiimotes.
-      static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(i))->DoState(p);
+      if (!static_cast<WiimoteEmu::Wiimote*>(s_config.GetController(i))->DoState(p))
+        return false;
     }
 
     if (p.GetMode() == PointerWrap::MODE_READ)
@@ -287,5 +288,7 @@ void DoState(PointerWrap& p)
       }
     }
   }
+
+  return true;
 }
 }  // namespace Wiimote

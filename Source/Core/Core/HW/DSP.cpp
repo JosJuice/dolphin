@@ -145,7 +145,7 @@ static bool s_dsp_is_lle = false;
 // time given to LLE DSP on every read of the high bits in a mailbox
 static const int DSP_MAIL_SLICE = 72;
 
-void DoState(PointerWrap& p)
+bool DoState(PointerWrap& p)
 {
   if (!s_ARAM.wii_mode)
     p.DoArray(s_ARAM.ptr, s_ARAM.size);
@@ -157,7 +157,7 @@ void DoState(PointerWrap& p)
   p.Do(s_AR_REFRESH);
   p.Do(s_dsp_slice);
 
-  s_dsp_emulator->DoState(p);
+  return s_dsp_emulator->DoState(p);
 }
 
 static void UpdateInterrupts();

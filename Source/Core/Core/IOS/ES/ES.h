@@ -46,7 +46,7 @@ public:
   ReturnCode DIVerify(const IOS::ES::TMDReader& tmd, const IOS::ES::TicketReader& ticket);
   bool LaunchTitle(u64 title_id, bool skip_reload = false);
 
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
   IPCCommandResult Open(const OpenRequest& request) override;
   IPCCommandResult Close(u32 fd) override;

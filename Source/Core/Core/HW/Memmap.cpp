@@ -301,18 +301,23 @@ void UpdateLogicalMemory(const PowerPC::BatTable& dbat_table)
   }
 }
 
-void DoState(PointerWrap& p)
+bool DoState(PointerWrap& p)
 {
   bool wii = SConfig::GetInstance().bWii;
   p.DoArray(m_pRAM, RAM_SIZE);
   p.DoArray(m_pL1Cache, L1_CACHE_SIZE);
-  p.DoMarker("Memory RAM");
+  if (!p.DoMarker("Memory RAM"))
+    return false;
   if (m_pFakeVMEM)
     p.DoArray(m_pFakeVMEM, FAKEVMEM_SIZE);
-  p.DoMarker("Memory FakeVMEM");
+  if (!p.DoMarker("Memory FakeVMEM"))
+    return false;
   if (wii)
     p.DoArray(m_pEXRAM, EXRAM_SIZE);
-  p.DoMarker("Memory EXRAM");
+  if (!p.DoMarker("Memory EXRAM"))
+    return false;
+
+  return true;
 }
 
 void Shutdown()

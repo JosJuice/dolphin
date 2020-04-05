@@ -68,7 +68,7 @@ public:
   static void PopulateBackendInfo();
 
   // Wrapper function which pushes the event to the GPU thread.
-  void DoState(PointerWrap& p);
+  [[nodiscard]] bool DoState(PointerWrap& p);
 
 protected:
   void InitializeShared();

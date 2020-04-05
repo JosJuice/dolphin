@@ -45,12 +45,13 @@ FS::FS(Kernel& ios, const std::string& device_name) : Device(ios, device_name)
   }
 }
 
-void FS::DoState(PointerWrap& p)
+bool FS::DoState(PointerWrap& p)
 {
   p.Do(m_fd_map);
   p.Do(m_cache_fd);
   p.Do(m_cache_chain_index);
   p.Do(m_dirty_cache);
+  return true;
 }
 
 template <typename... Args>

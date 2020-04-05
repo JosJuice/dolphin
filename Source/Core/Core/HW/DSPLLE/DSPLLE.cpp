@@ -44,7 +44,7 @@ DSPLLE::~DSPLLE()
   DSP_StopSoundStream();
 }
 
-void DSPLLE::DoState(PointerWrap& p)
+bool DSPLLE::DoState(PointerWrap& p)
 {
   bool is_hle = false;
   p.Do(is_hle);
@@ -52,8 +52,7 @@ void DSPLLE::DoState(PointerWrap& p)
   {
     Core::DisplayMessage("State is incompatible with current DSP engine. Aborting load state.",
                          3000);
-    p.SetMode(PointerWrap::MODE_VERIFY);
-    return;
+    return false;
   }
   p.Do(g_dsp.r);
   p.Do(g_dsp.pc);
@@ -86,6 +85,8 @@ void DSPLLE::DoState(PointerWrap& p)
 
   if (g_dsp_jit)
     g_dsp_jit->DoState(p);
+
+  return true;
 }
 
 // Regular thread

@@ -24,7 +24,7 @@ public:
   IPCCommandResult Close(u32 fd) override;
   IPCCommandResult IOCtl(const IOCtlRequest& request) override;
   IPCCommandResult IOCtlV(const IOCtlVRequest& request) override;
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
 private:
   std::shared_ptr<OH0> m_oh0;

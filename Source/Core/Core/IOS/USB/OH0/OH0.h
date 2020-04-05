@@ -48,7 +48,7 @@ public:
   IPCCommandResult DeviceIOCtl(u64 device_id, const IOCtlRequest& request);
   IPCCommandResult DeviceIOCtlV(u64 device_id, const IOCtlVRequest& request);
 
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 
 private:
   IPCCommandResult CancelInsertionHook(const IOCtlRequest& request);

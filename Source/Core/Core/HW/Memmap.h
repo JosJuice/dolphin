@@ -64,7 +64,7 @@ void Init();
 void Shutdown();
 bool InitFastmemArena();
 void ShutdownFastmemArena();
-void DoState(PointerWrap& p);
+[[nodiscard]] bool DoState(PointerWrap& p);
 
 void UpdateLogicalMemory(const PowerPC::BatTable& dbat_table);
 

@@ -148,7 +148,7 @@ void Shutdown()
   UnregisterAllEvents();
 }
 
-void DoState(PointerWrap& p)
+bool DoState(PointerWrap& p)
 {
   std::lock_guard<std::mutex> lk(s_ts_write_lock);
   p.Do(g.slice_length);
@@ -162,7 +162,8 @@ void DoState(PointerWrap& p)
   g.last_OC_factor_inverted = 1.0f / s_last_OC_factor;
   p.Do(s_event_fifo_id);
 
-  p.DoMarker("CoreTimingData");
+  if (!p.DoMarker("CoreTimingData"))
+    return false;
 
   MoveEvents();
   p.DoEachElement(s_event_queue, [](PointerWrap& pw, Event& ev) {
@@ -196,13 +197,16 @@ void DoState(PointerWrap& p)
       }
     }
   });
-  p.DoMarker("CoreTimingEvents");
+  if (!p.DoMarker("CoreTimingEvents"))
+    return false;
 
   // When loading from a save state, we must assume the Event order is random and meaningless.
   // The exact layout of the heap in memory is implementation defined, therefore it is platform
   // and library version specific.
   if (p.GetMode() == PointerWrap::MODE_READ)
     std::make_heap(s_event_queue.begin(), s_event_queue.end(), std::greater<Event>());
+
+  return true;
 }
 
 // This should only be called from the CPU thread. If you are calling

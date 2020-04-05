@@ -157,7 +157,7 @@ void AsyncRequests::HandleEvent(const AsyncRequests::Event& e)
     break;
 
   case Event::DO_SAVE_STATE:
-    VideoCommon_DoState(*e.do_save_state.p);
+    m_was_last_dostate_successful = VideoCommon_DoState(*e.do_save_state.p);
     break;
   }
 }

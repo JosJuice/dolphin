@@ -25,7 +25,7 @@ class WiimoteDevice
 public:
   WiimoteDevice(Device::BluetoothEmu* host, int number, bdaddr_t bd, bool ready = false);
 
-  void DoState(PointerWrap& p);
+  [[nodiscard]] bool DoState(PointerWrap& p);
 
   // ugly Host handling....
   // we really have to clean all this code

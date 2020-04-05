@@ -91,7 +91,7 @@ USBV5ResourceManager::~USBV5ResourceManager()
   StopThreads();
 }
 
-void USBV5ResourceManager::DoState(PointerWrap& p)
+bool USBV5ResourceManager::DoState(PointerWrap& p)
 {
   p.Do(m_devicechange_first_call);
   u32 hook_address = m_devicechange_hook_request ? m_devicechange_hook_request->address : 0;
@@ -102,7 +102,7 @@ void USBV5ResourceManager::DoState(PointerWrap& p)
     m_devicechange_hook_request.reset();
 
   p.Do(m_usbv5_devices);
-  USBHost::DoState(p);
+  return USBHost::DoState(p);
 }
 
 USBV5ResourceManager::USBV5Device* USBV5ResourceManager::GetUSBV5Device(u32 in_buffer)

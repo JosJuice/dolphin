@@ -52,7 +52,7 @@ public:
   IPCCommandResult Close(u32 fd) override;
   IPCCommandResult IOCtlV(const IOCtlVRequest& request) override;
 
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
   void UpdateSyncButtonState(bool is_held) override;
   void TriggerSyncButtonPressedEvent() override;
   void TriggerSyncButtonHeldEvent() override;

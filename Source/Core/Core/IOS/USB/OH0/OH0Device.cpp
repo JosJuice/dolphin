@@ -42,13 +42,14 @@ OH0Device::OH0Device(Kernel& ios, const std::string& name) : Device(ios, name, D
     GetVidPidFromDevicePath(name, m_vid, m_pid);
 }
 
-void OH0Device::DoState(PointerWrap& p)
+bool OH0Device::DoState(PointerWrap& p)
 {
   m_oh0 = std::static_pointer_cast<OH0>(GetIOS()->GetDeviceByName("/dev/usb/oh0"));
   p.Do(m_name);
   p.Do(m_vid);
   p.Do(m_pid);
   p.Do(m_device_id);
+  return true;
 }
 
 IPCCommandResult OH0Device::Open(const OpenRequest& request)

@@ -146,10 +146,11 @@ Device::Device(Kernel& ios, const std::string& device_name, const DeviceType typ
 {
 }
 
-void Device::DoState(PointerWrap& p)
+bool Device::DoState(PointerWrap& p)
 {
   DoStateShared(p);
   p.Do(m_is_active);
+  return true;
 }
 
 void Device::DoStateShared(PointerWrap& p)

@@ -9,7 +9,7 @@
 CPState g_main_cp_state;
 CPState g_preprocess_cp_state;
 
-void DoCPState(PointerWrap& p)
+bool DoCPState(PointerWrap& p)
 {
   // We don't save g_preprocess_cp_state separately because the GPU should be
   // synced around state save/load.
@@ -19,12 +19,14 @@ void DoCPState(PointerWrap& p)
   p.Do(g_main_cp_state.matrix_index_b);
   p.Do(g_main_cp_state.vtx_desc.Hex);
   p.DoArray(g_main_cp_state.vtx_attr);
-  p.DoMarker("CP Memory");
+  if (!p.DoMarker("CP Memory"))
+    return false;
   if (p.mode == PointerWrap::MODE_READ)
   {
     CopyPreprocessCPStateFromMain();
     g_main_cp_state.bases_dirty = true;
   }
+  return true;
 }
 
 void CopyPreprocessCPStateFromMain()

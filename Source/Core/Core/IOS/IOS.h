@@ -64,7 +64,7 @@ public:
   Kernel();
   virtual ~Kernel();
 
-  void DoState(PointerWrap& p);
+  [[nodiscard]] bool DoState(PointerWrap& p);
   void HandleIPCEvent(u64 userdata);
   void UpdateIPC();
   void UpdateDevices();

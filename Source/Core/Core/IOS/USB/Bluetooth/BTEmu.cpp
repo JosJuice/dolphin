@@ -99,15 +99,14 @@ static void DoStateForMessage(Kernel& ios, PointerWrap& p, std::unique_ptr<T>& m
   }
 }
 
-void BluetoothEmu::DoState(PointerWrap& p)
+bool BluetoothEmu::DoState(PointerWrap& p)
 {
   bool passthrough_bluetooth = false;
   p.Do(passthrough_bluetooth);
   if (passthrough_bluetooth && p.GetMode() == PointerWrap::MODE_READ)
   {
     Core::DisplayMessage("State needs Bluetooth passthrough to be enabled. Aborting load.", 4000);
-    p.SetMode(PointerWrap::MODE_VERIFY);
-    return;
+    return false;
   }
 
   p.Do(m_is_active);
@@ -122,7 +121,12 @@ void BluetoothEmu::DoState(PointerWrap& p)
   m_acl_pool.DoState(p);
 
   for (unsigned int i = 0; i < MAX_BBMOTES; i++)
-    m_wiimotes[i].DoState(p);
+  {
+    if (!m_wiimotes[i].DoState(p))
+      return false;
+  }
+
+  return true;
 }
 
 bool BluetoothEmu::RemoteDisconnect(u16 connection_handle)

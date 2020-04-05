@@ -74,7 +74,7 @@ IPCCommandResult OH0::IOCtlV(const IOCtlVRequest& request)
   }
 }
 
-void OH0::DoState(PointerWrap& p)
+bool OH0::DoState(PointerWrap& p)
 {
   if (p.GetMode() == PointerWrap::MODE_READ && !m_devices.empty())
   {
@@ -85,7 +85,7 @@ void OH0::DoState(PointerWrap& p)
   p.Do(m_insertion_hooks);
   p.Do(m_removal_hooks);
   p.Do(m_opened_devices);
-  USBHost::DoState(p);
+  return USBHost::DoState(p);
 }
 
 IPCCommandResult OH0::CancelInsertionHook(const IOCtlRequest& request)

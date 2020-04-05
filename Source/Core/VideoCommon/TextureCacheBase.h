@@ -241,7 +241,7 @@ public:
   std::optional<TexPoolEntry> DeserializeTexture(PointerWrap& p);
 
   // Save States
-  void DoState(PointerWrap& p);
+  [[nodiscard]] bool DoState(PointerWrap& p);
 
   // Returns false if the top/bottom row coefficients are zero.
   static bool NeedsCopyFilterInShader(const EFBCopyFilterCoefficients& coefficients);
@@ -330,8 +330,8 @@ private:
   void ReleaseEFBCopyStagingTexture(std::unique_ptr<AbstractStagingTexture> tex);
 
   bool CheckReadbackTexture(u32 width, u32 height, AbstractTextureFormat format);
-  void DoSaveState(PointerWrap& p);
-  void DoLoadState(PointerWrap& p);
+  [[nodiscard]] bool DoSaveState(PointerWrap& p);
+  [[nodiscard]] bool DoLoadState(PointerWrap& p);
 
   TexAddrCache textures_by_address;
   TexHashCache textures_by_hash;

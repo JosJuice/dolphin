@@ -230,8 +230,7 @@ bool GameFileCache::SyncCacheFile(bool save)
     std::vector<u8> buffer(buffer_size);
     ptr = &buffer[0];
     p.SetMode(PointerWrap::MODE_WRITE);
-    DoState(&p, buffer_size);
-    if (f.WriteBytes(buffer.data(), buffer.size()))
+    if (DoState(&p, buffer_size) && f.WriteBytes(buffer.data(), buffer.size()))
       success = true;
   }
   else
@@ -241,8 +240,7 @@ bool GameFileCache::SyncCacheFile(bool save)
     {
       u8* ptr = buffer.data();
       PointerWrap p(&ptr, PointerWrap::MODE_READ);
-      DoState(&p, buffer.size());
-      if (p.GetMode() == PointerWrap::MODE_READ)
+      if (DoState(&p, buffer.size()))
         success = true;
     }
   }
@@ -255,7 +253,7 @@ bool GameFileCache::SyncCacheFile(bool save)
   return success;
 }
 
-void GameFileCache::DoState(PointerWrap* p, u64 size)
+bool GameFileCache::DoState(PointerWrap* p, u64 size)
 {
   struct
   {
@@ -266,16 +264,14 @@ void GameFileCache::DoState(PointerWrap* p, u64 size)
   if (p->GetMode() == PointerWrap::MODE_READ)
   {
     if (header.revision != CACHE_REVISION || header.expected_size != size)
-    {
-      p->SetMode(PointerWrap::MODE_MEASURE);
-      return;
-    }
+      return false;
   }
   p->DoEachElement(m_cached_files, [](PointerWrap& state, std::shared_ptr<GameFile>& elem) {
     if (state.GetMode() == PointerWrap::MODE_READ)
       elem = std::make_shared<GameFile>();
     elem->DoState(state);
   });
+  return true;
 }
 
 }  // namespace UICommon

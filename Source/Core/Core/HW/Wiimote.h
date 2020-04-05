@@ -78,7 +78,7 @@ void LoadConfig();
 void Resume();
 void Pause();
 
-void DoState(PointerWrap& p);
+[[nodiscard]] bool DoState(PointerWrap& p);
 InputConfig* GetConfig();
 ControllerEmu::ControlGroup* GetWiimoteGroup(int number, WiimoteEmu::WiimoteGroup group);
 ControllerEmu::ControlGroup* GetNunchukGroup(int number, WiimoteEmu::NunchukGroup group);

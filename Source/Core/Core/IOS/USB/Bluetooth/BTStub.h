@@ -19,6 +19,6 @@ class BluetoothStub final : public BluetoothBase
 public:
   using BluetoothBase::BluetoothBase;
   IPCCommandResult Open(const OpenRequest& request) override;
-  void DoState(PointerWrap& p) override;
+  [[nodiscard]] bool DoState(PointerWrap& p) override;
 };
 }  // namespace IOS::HLE::Device
