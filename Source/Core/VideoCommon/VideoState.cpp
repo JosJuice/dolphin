@@ -27,7 +27,7 @@ bool VideoCommon_DoState(PointerWrap& p)
   bool software = false;
   p.Do(software);
 
-  if (p.GetMode() == PointerWrap::MODE_READ && software == true)
+  if (p.GetMode() == PointerWrap::Mode::Read && software == true)
     return false;
 
   // BP Memory
@@ -98,7 +98,7 @@ bool VideoCommon_DoState(PointerWrap& p)
     return false;
 
   // Refresh state.
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     // Inform backend of new state from registers.
     BPReload();

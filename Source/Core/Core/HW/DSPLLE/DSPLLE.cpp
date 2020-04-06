@@ -48,7 +48,7 @@ bool DSPLLE::DoState(PointerWrap& p)
 {
   bool is_hle = false;
   p.Do(is_hle);
-  if (is_hle && p.GetMode() == PointerWrap::MODE_READ)
+  if (is_hle && p.GetMode() == PointerWrap::Mode::Read)
   {
     Core::DisplayMessage("State is incompatible with current DSP engine. Aborting load state.",
                          3000);
@@ -77,7 +77,7 @@ bool DSPLLE::DoState(PointerWrap& p)
   Common::UnWriteProtectMemory(g_dsp.iram, DSP_IRAM_BYTE_SIZE, false);
   p.DoArray(g_dsp.iram, DSP_IRAM_SIZE);
   Common::WriteProtectMemory(g_dsp.iram, DSP_IRAM_BYTE_SIZE, false);
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
     Host::CodeLoaded((const u8*)g_dsp.iram, DSP_IRAM_BYTE_SIZE);
   p.DoArray(g_dsp.dram, DSP_DRAM_SIZE);
   p.Do(g_init_hax);

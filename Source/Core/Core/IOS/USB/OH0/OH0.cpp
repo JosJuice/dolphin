@@ -76,7 +76,7 @@ IPCCommandResult OH0::IOCtlV(const IOCtlVRequest& request)
 
 bool OH0::DoState(PointerWrap& p)
 {
-  if (p.GetMode() == PointerWrap::MODE_READ && !m_devices.empty())
+  if (p.GetMode() == PointerWrap::Mode::Read && !m_devices.empty())
   {
     Core::DisplayMessage("It is suggested that you unplug and replug all connected USB devices.",
                          5000);

@@ -111,7 +111,7 @@ void GeometryShaderManager::DoState(PointerWrap& p)
 
   p.Do(constants);
 
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     // Fixup the current state from global GPU state
     // NOTE: This requires that all GPU memory has been loaded already.

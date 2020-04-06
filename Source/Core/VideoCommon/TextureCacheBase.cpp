@@ -464,7 +464,7 @@ std::optional<TextureCacheBase::TexPoolEntry> TextureCacheBase::DeserializeTextu
   std::vector<u8> texture_data;
   p.Do(texture_data);
 
-  if (p.GetMode() != PointerWrap::MODE_READ || texture_data.empty())
+  if (p.GetMode() != PointerWrap::Mode::Read || texture_data.empty())
     return std::nullopt;
 
   auto tex = AllocateTexture(config);
@@ -504,7 +504,7 @@ bool TextureCacheBase::DoState(PointerWrap& p)
 
   p.Do(last_entry_id);
 
-  if (p.GetMode() == PointerWrap::MODE_WRITE)
+  if (p.GetMode() == PointerWrap::Mode::Write)
     return DoSaveState(p);
   else
     return DoLoadState(p);
@@ -638,7 +638,7 @@ bool TextureCacheBase::DoLoadState(PointerWrap& p)
   // Only clear out state when actually restoring/loading.
   // Since we throw away entries when not in loading mode now, we don't need to check
   // before inserting entries into the cache, as GetEntry will always return null.
-  const bool commit_state = p.GetMode() == PointerWrap::MODE_READ;
+  const bool commit_state = p.GetMode() == PointerWrap::Mode::Read;
   if (commit_state)
     Invalidate();
 

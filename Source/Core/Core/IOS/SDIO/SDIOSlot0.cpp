@@ -30,7 +30,7 @@ SDIOSlot0::SDIOSlot0(Kernel& ios, const std::string& device_name)
 bool SDIOSlot0::DoState(PointerWrap& p)
 {
   DoStateShared(p);
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     OpenInternal();
   }

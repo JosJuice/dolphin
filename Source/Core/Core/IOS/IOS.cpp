@@ -713,7 +713,7 @@ bool Kernel::DoState(PointerWrap& p)
       return false;
   }
 
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     for (u32 i = 0; i < IPC_MAX_FDS; i++)
     {

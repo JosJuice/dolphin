@@ -277,7 +277,7 @@ bool DoState(PointerWrap& p)
         return false;
     }
 
-    if (p.GetMode() == PointerWrap::MODE_READ)
+    if (p.GetMode() == PointerWrap::Mode::Read)
     {
       // If using a real wiimote or the save-state source does not match the current source,
       // then force a reconnection on load.

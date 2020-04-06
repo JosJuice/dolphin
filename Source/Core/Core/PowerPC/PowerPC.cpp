@@ -126,7 +126,7 @@ void DoState(PointerWrap& p)
 
   ppcState.iCache.DoState(p);
 
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     IBATUpdated();
     DBATUpdated();

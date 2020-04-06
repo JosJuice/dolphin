@@ -142,7 +142,7 @@ void EncryptedExtension::DoState(PointerWrap& p)
 {
   p.Do(m_reg);
 
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     // No need to sync the key when we can just regenerate it.
     m_is_key_dirty = true;

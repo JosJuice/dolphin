@@ -227,7 +227,7 @@ bool GameFileCache::SyncCacheFile(bool save)
   if (save)
   {
     std::vector<u8> buffer;
-    PointerWrap p(&buffer, PointerWrap::MODE_WRITE);
+    PointerWrap p(&buffer, PointerWrap::Mode::Write);
     DoState(&p);
     GameFileCacheHeader header{CACHE_REVISION, buffer.size()};
     if (f.WriteArray(&header, 1) && f.WriteBytes(buffer.data(), buffer.size()))
@@ -244,7 +244,7 @@ bool GameFileCache::SyncCacheFile(bool save)
         std::vector<u8> buffer(file_size - sizeof(GameFileCacheHeader));
         if (f.ReadBytes(buffer.data(), buffer.size()))
         {
-          PointerWrap p(&buffer, PointerWrap::MODE_READ);
+          PointerWrap p(&buffer, PointerWrap::Mode::Read);
           DoState(&p);
           success = true;
         }
@@ -263,7 +263,7 @@ bool GameFileCache::SyncCacheFile(bool save)
 void GameFileCache::DoState(PointerWrap* p)
 {
   p->DoEachElement(m_cached_files, [](PointerWrap& state, std::shared_ptr<GameFile>& elem) {
-    if (state.GetMode() == PointerWrap::MODE_READ)
+    if (state.GetMode() == PointerWrap::Mode::Read)
       elem = std::make_shared<GameFile>();
     elem->DoState(state);
   });

@@ -226,7 +226,7 @@ void LoadFromBuffer(std::vector<u8>* buffer)
 
   Core::RunOnCPUThread(
       [&] {
-        PointerWrap p(buffer, PointerWrap::MODE_READ);
+        PointerWrap p(buffer, PointerWrap::Mode::Read);
         DoState(p);
       },
       true);
@@ -236,7 +236,7 @@ void SaveToBuffer(std::vector<u8>* buffer)
 {
   Core::RunOnCPUThread(
       [&] {
-        PointerWrap p(buffer, PointerWrap::MODE_WRITE);
+        PointerWrap p(buffer, PointerWrap::Mode::Write);
         DoState(p);
       },
       true);
@@ -405,7 +405,7 @@ void SaveAs(const std::string& filename, bool wait)
       [&] {
         const bool success = [&]{
           std::lock_guard<std::mutex> lk(g_cs_current_buffer);
-          PointerWrap p(&g_current_buffer, PointerWrap::MODE_WRITE);
+          PointerWrap p(&g_current_buffer, PointerWrap::Mode::Write);
           return DoState(p);
         }();
 
@@ -566,7 +566,7 @@ void LoadAs(const std::string& filename)
 
           if (!buffer.empty())
           {
-            PointerWrap p(&buffer, PointerWrap::MODE_READ);
+            PointerWrap p(&buffer, PointerWrap::Mode::Read);
             loadedSuccessfully = DoState(p);
             loaded = true;
           }

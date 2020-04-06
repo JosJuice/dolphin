@@ -21,7 +21,7 @@ bool DoCPState(PointerWrap& p)
   p.DoArray(g_main_cp_state.vtx_attr);
   if (!p.DoMarker("CP Memory"))
     return false;
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     CopyPreprocessCPStateFromMain();
     g_main_cp_state.bases_dirty = true;

@@ -265,7 +265,7 @@ bool BluetoothReal::DoState(PointerWrap& p)
 {
   bool passthrough_bluetooth = true;
   p.Do(passthrough_bluetooth);
-  if (!passthrough_bluetooth && p.GetMode() == PointerWrap::MODE_READ)
+  if (!passthrough_bluetooth && p.GetMode() == PointerWrap::Mode::Read)
   {
     Core::DisplayMessage("State needs Bluetooth passthrough to be disabled. Aborting load.", 4000);
     return false;
@@ -276,14 +276,14 @@ bool BluetoothReal::DoState(PointerWrap& p)
   std::lock_guard<std::mutex> lk(m_transfers_mutex);
 
   std::vector<u32> addresses_to_discard;
-  if (p.GetMode() != PointerWrap::MODE_READ)
+  if (p.GetMode() != PointerWrap::Mode::Read)
   {
     // Save addresses of transfer commands to discard on savestate load.
     for (const auto& transfer : m_current_transfers)
       addresses_to_discard.push_back(transfer.second.command->ios_request.address);
   }
   p.Do(addresses_to_discard);
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     // On load, discard any pending transfer to make sure the emulated software is not stuck
     // waiting for the previous request to complete. This is usually not an issue as long as
@@ -299,7 +299,7 @@ bool BluetoothReal::DoState(PointerWrap& p)
                     OSD::Duration::NORMAL);
   }
 
-  if (!s_has_shown_savestate_warning && p.GetMode() == PointerWrap::MODE_WRITE)
+  if (!s_has_shown_savestate_warning && p.GetMode() == PointerWrap::Mode::Write)
   {
     OSD::AddMessage("Savestates may not work with Bluetooth passthrough in all cases.\n"
                     "They will only work if no remote is connected when restoring the state,\n"

@@ -84,7 +84,7 @@ bool WiimoteDevice::DoState(PointerWrap& p)
 {
   bool passthrough_bluetooth = false;
   p.Do(passthrough_bluetooth);
-  if (passthrough_bluetooth && p.GetMode() == PointerWrap::MODE_READ)
+  if (passthrough_bluetooth && p.GetMode() == PointerWrap::Mode::Read)
   {
     Core::DisplayMessage("State needs Bluetooth passthrough to be enabled. Aborting load state.",
                          3000);

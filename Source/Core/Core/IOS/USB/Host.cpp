@@ -56,7 +56,7 @@ void USBHost::UpdateWantDeterminism(const bool new_want_determinism)
 
 bool USBHost::DoState(PointerWrap& p)
 {
-  if (IsOpened() && p.GetMode() == PointerWrap::MODE_READ)
+  if (IsOpened() && p.GetMode() == PointerWrap::Mode::Read)
   {
     // After a state has loaded, there may be insertion hooks for devices that were
     // already plugged in, and which need to be triggered.

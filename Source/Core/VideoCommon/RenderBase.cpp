@@ -1668,7 +1668,7 @@ void Renderer::DoState(PointerWrap& p)
   p.Do(m_last_xfb_stride);
   p.Do(m_last_xfb_height);
 
-  if (p.GetMode() == PointerWrap::MODE_READ)
+  if (p.GetMode() == PointerWrap::Mode::Read)
   {
     // Force the next xfb to be displayed.
     m_last_xfb_id = std::numeric_limits<u64>::max();

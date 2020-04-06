@@ -41,15 +41,15 @@ constexpr bool IsTriviallyCopyable = std::is_trivially_copyable<std::remove_vola
 class PointerWrap
 {
 public:
-  enum Mode
+  enum class Mode
   {
-    MODE_READ = 1,  // load
-    MODE_WRITE,     // save
+    Read,
+    Write,
   };
 
   PointerWrap(std::vector<u8>* buffer, Mode mode) : m_buffer(buffer), m_mode(mode)
   {
-    if (mode == MODE_READ)
+    if (mode == Mode::Read)
       buffer->clear();
   }
 
@@ -61,7 +61,7 @@ public:
     u32 count = (u32)x.size();
     Do(count);
 
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
     {
       for (x.clear(); count != 0; --count)
       {
@@ -87,7 +87,7 @@ public:
     u32 count = (u32)x.size();
     Do(count);
 
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
     {
       for (x.clear(); count != 0; --count)
       {
@@ -140,7 +140,7 @@ public:
     bool present = x.has_value();
     Do(present);
 
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
     {
       if (present)
       {
@@ -188,7 +188,7 @@ public:
   {
     bool s = flag.IsSet();
     Do(s);
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
       flag.Set(s);
   }
 
@@ -197,7 +197,7 @@ public:
   {
     T temp = atomic.load();
     Do(temp);
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
       atomic.store(temp);
   }
 
@@ -227,7 +227,7 @@ public:
 
     Do(stable);
 
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
       x = stable != 0;
   }
 
@@ -238,7 +238,7 @@ public:
     // much range
     ptrdiff_t offset = x - base;
     Do(offset);
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
       x = base + offset;
   }
 
@@ -247,7 +247,7 @@ public:
     u32 cookie = arbitraryNumber;
     Do(cookie);
 
-    if (m_mode == PointerWrap::MODE_READ && cookie != arbitraryNumber)
+    if (m_mode == PointerWrap::Mode::Read && cookie != arbitraryNumber)
     {
       PanicAlertT("Error: After \"%s\", found %d (0x%X) instead of save marker %d (0x%X). Aborting "
                   "savestate load...",
@@ -289,7 +289,7 @@ private:
 
   DOLPHIN_FORCE_INLINE void DoVoid(void* data, u32 size)
   {
-    if (m_mode == MODE_READ)
+    if (m_mode == Mode::Read)
     {
       memcpy(data, &(*m_buffer)[m_offset], size);
     }
