@@ -403,6 +403,8 @@ void SaveAs(const std::string& filename, bool wait)
 
   Core::RunOnCPUThread(
       [&] {
+        const u32 ms_before = Common::Timer::GetTimeMs();
+
         const bool success = [&]{
           std::lock_guard<std::mutex> lk(g_cs_current_buffer);
           PointerWrap p(&g_current_buffer, PointerWrap::Mode::Write);
@@ -411,6 +413,8 @@ void SaveAs(const std::string& filename, bool wait)
 
         if (success)
         {
+          const u32 ms_after = Common::Timer::GetTimeMs();
+          NOTICE_LOG(CORE, "Saved in %u ms", ms_after - ms_before);
           Core::DisplayMessage("Saving State...", 1000);
 
           CompressAndDumpState_args save_args;
@@ -556,6 +560,7 @@ void LoadAs(const std::string& filename)
             File::Delete(File::GetUserPath(D_STATESAVES_IDX) + "undo.dtm");
         }
 
+        const u32 ms_before = Common::Timer::GetTimeMs();
         bool loaded = false;
         bool loadedSuccessfully = false;
 
@@ -574,6 +579,8 @@ void LoadAs(const std::string& filename)
 
         if (loaded)
         {
+          const u32 ms_after = Common::Timer::GetTimeMs();
+          NOTICE_LOG(CORE, "Loaded in %u ms", ms_after - ms_before);
           if (loadedSuccessfully)
           {
             Core::DisplayMessage(fmt::format("Loaded state from {}", filename), 2000);
