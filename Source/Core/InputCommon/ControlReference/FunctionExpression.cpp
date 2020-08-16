@@ -13,6 +13,22 @@ namespace ciface::ExpressionParser
 using Clock = std::chrono::steady_clock;
 using FSec = std::chrono::duration<ControlState>;
 
+template <ControlState (*F)(ControlState)>
+class UnaryExpression : public FunctionExpression
+{
+private:
+  ArgumentValidation
+  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
+  {
+    if (args.size() == 1)
+      return ArgumentsAreValid{};
+    else
+      return ExpectedArguments{"expression"};
+  }
+
+  ControlState GetValue() const override { return F(GetArg(0).GetValue()); }
+};
+
 // usage: toggle(toggle_state_input, [clear_state_input])
 class ToggleExpression : public FunctionExpression
 {
@@ -71,100 +87,22 @@ private:
 };
 
 // usage: sin(expression)
-class SinExpression : public FunctionExpression
-{
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
-
-  ControlState GetValue() const override { return std::sin(GetArg(0).GetValue()); }
-};
+using SinExpression = UnaryExpression<std::sin>;
 
 // usage: cos(expression)
-class CosExpression : public FunctionExpression
-{
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
-
-  ControlState GetValue() const override { return std::cos(GetArg(0).GetValue()); }
-};
+using CosExpression = UnaryExpression<std::cos>;
 
 // usage: tan(expression)
-class TanExpression : public FunctionExpression
-{
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
-
-  ControlState GetValue() const override { return std::tan(GetArg(0).GetValue()); }
-};
+using TanExpression = UnaryExpression<std::tan>;
 
 // usage: asin(expression)
-class ASinExpression : public FunctionExpression
-{
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
-
-  ControlState GetValue() const override { return std::asin(GetArg(0).GetValue()); }
-};
+using ASinExpression = UnaryExpression<std::asin>;
 
 // usage: acos(expression)
-class ACosExpression : public FunctionExpression
-{
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
-
-  ControlState GetValue() const override { return std::acos(GetArg(0).GetValue()); }
-};
+using ACosExpression = UnaryExpression<std::acos>;
 
 // usage: atan(expression)
-class ATanExpression : public FunctionExpression
-{
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
-
-  ControlState GetValue() const override { return std::atan(GetArg(0).GetValue()); }
-};
+using ATanExpression = UnaryExpression<std::atan>;
 
 // usage: atan2(y, x)
 class ATan2Expression : public FunctionExpression
@@ -186,20 +124,7 @@ private:
 };
 
 // usage: sqrt(expression)
-class SqrtExpression : public FunctionExpression
-{
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
-
-  ControlState GetValue() const override { return std::sqrt(GetArg(0).GetValue()); }
-};
+using SqrtExpression = UnaryExpression<std::sqrt>;
 
 // usage: pow(base, exponent)
 class PowExpression : public FunctionExpression
@@ -340,25 +265,13 @@ private:
   }
 };
 
-// usage: minus(expression)
-class UnaryMinusExpression : public FunctionExpression
+static ControlState UnaryMinus(ControlState x)
 {
-private:
-  ArgumentValidation
-  ValidateArguments(const std::vector<std::unique_ptr<Expression>>& args) override
-  {
-    if (args.size() == 1)
-      return ArgumentsAreValid{};
-    else
-      return ExpectedArguments{"expression"};
-  }
+  return -x;
+}
 
-  ControlState GetValue() const override
-  {
-    // Subtraction for clarity:
-    return 0.0 - GetArg(0).GetValue();
-  }
-};
+// usage: minus(expression)
+using UnaryMinusExpression = UnaryExpression<UnaryMinus>;
 
 // usage: deadzone(input, amount)
 class DeadzoneExpression : public FunctionExpression
