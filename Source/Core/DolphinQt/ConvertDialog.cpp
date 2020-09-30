@@ -355,57 +355,11 @@ void ConvertDialog::Convert()
     return;
   }
 
-  QString dst_dir;
   QString dst_path;
-
-  if (m_files.size() > 1)
-  {
-    dst_dir = QFileDialog::getExistingDirectory(
-        this, tr("Select where you want to save the converted images"),
-        QFileInfo(QString::fromStdString(m_files[0]->GetFilePath())).dir().absolutePath());
-
-    if (dst_dir.isEmpty())
-      return;
-  }
-  else
-  {
-    dst_path = QFileDialog::getSaveFileName(
-        this, tr("Select where you want to save the converted image"),
-        QFileInfo(QString::fromStdString(m_files[0]->GetFilePath()))
-            .dir()
-            .absoluteFilePath(
-                QFileInfo(QString::fromStdString(m_files[0]->GetFilePath())).completeBaseName())
-            .append(extension),
-        filter);
-
-    if (dst_path.isEmpty())
-      return;
-  }
 
   for (const auto& file : m_files)
   {
     const auto original_path = file->GetFilePath();
-    if (m_files.size() > 1)
-    {
-      dst_path =
-          QDir(dst_dir)
-              .absoluteFilePath(QFileInfo(QString::fromStdString(original_path)).completeBaseName())
-              .append(extension);
-      QFileInfo dst_info = QFileInfo(dst_path);
-      if (dst_info.exists())
-      {
-        ModalMessageBox confirm_replace(this);
-        confirm_replace.setIcon(QMessageBox::Warning);
-        confirm_replace.setWindowTitle(tr("Confirm"));
-        confirm_replace.setText(tr("The file %1 already exists.\n"
-                                   "Do you wish to replace it?")
-                                    .arg(dst_info.fileName()));
-        confirm_replace.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-
-        if (confirm_replace.exec() == QMessageBox::No)
-          continue;
-      }
-    }
 
     ParallelProgressDialog progress_dialog(tr("Converting..."), tr("Abort"), 0, 100, this);
     progress_dialog.GetRaw()->setWindowModality(Qt::WindowModal);

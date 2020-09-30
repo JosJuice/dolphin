@@ -29,6 +29,7 @@
 #include "Common/ScopeGuard.h"
 #include "Common/StringUtil.h"
 #include "Common/Swap.h"
+#include "Common/Timer.h"
 
 #include "DiscIO/Blob.h"
 #include "DiscIO/DiscExtractor.h"
@@ -866,7 +867,7 @@ bool WIARVZFileReader<RVZ>::ApplyHashExceptions(
 }
 
 template <bool RVZ>
-bool WIARVZFileReader<RVZ>::PadTo4(File::IOFile* file, u64* bytes_written)
+bool WIARVZFileReader<RVZ>::PadTo4(u64* bytes_written)
 {
   constexpr u32 ZEROES = 0;
   const u64 bytes_to_write = Common::AlignUp(*bytes_written, 4) - *bytes_written;
@@ -874,7 +875,7 @@ bool WIARVZFileReader<RVZ>::PadTo4(File::IOFile* file, u64* bytes_written)
     return true;
 
   *bytes_written += bytes_to_write;
-  return file->WriteBytes(&ZEROES, bytes_to_write);
+  return true;
 }
 
 template <bool RVZ>
@@ -1634,7 +1635,6 @@ WIARVZFileReader<RVZ>::ProcessAndCompress(CompressThreadState* state, CompressPa
 
 template <bool RVZ>
 ConversionResultCode WIARVZFileReader<RVZ>::Output(std::vector<OutputParametersEntry>* entries,
-                                                   File::IOFile* outfile,
                                                    std::map<ReuseID, GroupEntry>* reusable_groups,
                                                    std::mutex* reusable_groups_mutex,
                                                    GroupEntry* group_entry, u64* bytes_written)
@@ -1663,11 +1663,6 @@ ConversionResultCode WIARVZFileReader<RVZ>::Output(std::vector<OutputParametersE
     }
     group_entry->data_size = Common::swap32(data_size);
 
-    if (!outfile->WriteArray(entry.exception_lists.data(), entry.exception_lists.size()))
-      return ConversionResultCode::WriteFailed;
-    if (!outfile->WriteArray(entry.main_data.data(), entry.main_data.size()))
-      return ConversionResultCode::WriteFailed;
-
     *bytes_written += entry.exception_lists.size() + entry.main_data.size();
 
     if (entry.reuse_id)
@@ -1676,7 +1671,7 @@ ConversionResultCode WIARVZFileReader<RVZ>::Output(std::vector<OutputParametersE
       reusable_groups->emplace(*entry.reuse_id, *group_entry);
     }
 
-    if (!PadTo4(outfile, bytes_written))
+    if (!PadTo4(bytes_written))
       return ConversionResultCode::WriteFailed;
 
     ++group_entry;
@@ -1705,32 +1700,30 @@ ConversionResultCode WIARVZFileReader<RVZ>::RunCallback(size_t groups_written, u
 }
 
 template <bool RVZ>
-bool WIARVZFileReader<RVZ>::WriteHeader(File::IOFile* file, const u8* data, size_t size,
-                                        u64 upper_bound, u64* bytes_written, u64* offset_out)
+bool WIARVZFileReader<RVZ>::WriteHeader(const u8* data, size_t size, u64 upper_bound,
+                                        u64* bytes_written, u64* offset_out, u64 file_end)
 {
   // The first part of the check is to prevent this from running more than once. If *bytes_written
   // is past the upper bound, we are already at the end of the file, so we don't need to do anything
   if (*bytes_written <= upper_bound && *bytes_written + size > upper_bound)
   {
     WARN_LOG(DISCIO, "Headers did not fit in the allocated space. Writing to end of file instead");
-    if (!file->Seek(0, SEEK_END))
-      return false;
-    *bytes_written = file->Tell();
+    *bytes_written = file_end;
   }
 
   *offset_out = *bytes_written;
-  if (!file->WriteArray(data, size))
-    return false;
   *bytes_written += size;
-  return PadTo4(file, bytes_written);
+  return PadTo4(bytes_written);
 }
 
 template <bool RVZ>
 ConversionResultCode
 WIARVZFileReader<RVZ>::Convert(BlobReader* infile, const VolumeDisc* infile_volume,
-                               File::IOFile* outfile, WIARVZCompressionType compression_type,
-                               int compression_level, int chunk_size, CompressCB callback)
+                               WIARVZCompressionType compression_type, int compression_level,
+                               int chunk_size, CompressCB callback)
 {
+  const u64 start_time = Common::Timer::GetTimeUs();
+
   ASSERT(infile->IsDataSizeAccurate());
   ASSERT(chunk_size > 0);
 
@@ -1793,7 +1786,6 @@ WIARVZFileReader<RVZ>::Convert(BlobReader* infile, const VolumeDisc* infile_volu
   std::vector<u8> buffer;
 
   buffer.resize(headers_size_upper_bound);
-  outfile->WriteBytes(buffer.data(), buffer.size());
   bytes_written = headers_size_upper_bound;
 
   if (!infile->Read(0, header_2.disc_header.size(), header_2.disc_header.data()))
@@ -1824,7 +1816,7 @@ WIARVZFileReader<RVZ>::Convert(BlobReader* infile, const VolumeDisc* infile_volu
 
   const auto output = [&](OutputParameters parameters) {
     const ConversionResultCode result =
-        Output(&parameters.entries, outfile, &reusable_groups, &reusable_groups_mutex,
+        Output(&parameters.entries, &reusable_groups, &reusable_groups_mutex,
                &group_entries[parameters.group_index], &bytes_written);
 
     if (result != ConversionResultCode::Success)
@@ -1945,31 +1937,32 @@ WIARVZFileReader<RVZ>::Convert(BlobReader* infile, const VolumeDisc* infile_volu
   if (!compressed_group_entries)
     return ConversionResultCode::InternalError;
 
+  u64 file_end = bytes_written;
   bytes_written = sizeof(WIAHeader1) + sizeof(WIAHeader2);
-  if (!outfile->Seek(sizeof(WIAHeader1) + sizeof(WIAHeader2), SEEK_SET))
-    return ConversionResultCode::WriteFailed;
 
   u64 partition_entries_offset;
-  if (!WriteHeader(outfile, reinterpret_cast<u8*>(partition_entries.data()), partition_entries_size,
-                   headers_size_upper_bound, &bytes_written, &partition_entries_offset))
+  if (!WriteHeader(reinterpret_cast<u8*>(partition_entries.data()), partition_entries_size,
+                   headers_size_upper_bound, &bytes_written, &partition_entries_offset, file_end))
   {
     return ConversionResultCode::WriteFailed;
   }
+  file_end = std::max(file_end, bytes_written);
 
   u64 raw_data_entries_offset;
-  if (!WriteHeader(outfile, compressed_raw_data_entries->data(),
-                   compressed_raw_data_entries->size(), headers_size_upper_bound, &bytes_written,
-                   &raw_data_entries_offset))
+  if (!WriteHeader(compressed_raw_data_entries->data(), compressed_raw_data_entries->size(),
+                   headers_size_upper_bound, &bytes_written, &raw_data_entries_offset, file_end))
   {
     return ConversionResultCode::WriteFailed;
   }
+  file_end = std::max(file_end, bytes_written);
 
   u64 group_entries_offset;
-  if (!WriteHeader(outfile, compressed_group_entries->data(), compressed_group_entries->size(),
-                   headers_size_upper_bound, &bytes_written, &group_entries_offset))
+  if (!WriteHeader(compressed_group_entries->data(), compressed_group_entries->size(),
+                   headers_size_upper_bound, &bytes_written, &group_entries_offset, file_end))
   {
     return ConversionResultCode::WriteFailed;
   }
+  file_end = std::max(file_end, bytes_written);
 
   u32 disc_type = 0;
   if (infile_volume)
@@ -2011,17 +2004,15 @@ WIARVZFileReader<RVZ>::Convert(BlobReader* infile, const VolumeDisc* infile_volu
   mbedtls_sha1_ret(reinterpret_cast<const u8*>(&header_2), sizeof(header_2),
                    header_1.header_2_hash.data());
   header_1.iso_file_size = Common::swap64(infile->GetDataSize());
-  header_1.wia_file_size = Common::swap64(outfile->GetSize());
+  header_1.wia_file_size = Common::swap64(file_end);
   mbedtls_sha1_ret(reinterpret_cast<const u8*>(&header_1), offsetof(WIAHeader1, header_1_hash),
                    header_1.header_1_hash.data());
 
-  if (!outfile->Seek(0, SEEK_SET))
-    return ConversionResultCode::WriteFailed;
-
-  if (!outfile->WriteArray(&header_1, 1))
-    return ConversionResultCode::WriteFailed;
-  if (!outfile->WriteArray(&header_2, 1))
-    return ConversionResultCode::WriteFailed;
+  const u64 end_time = Common::Timer::GetTimeUs();
+  const double seconds = (static_cast<double>(end_time) - start_time) / 1000000.0;
+  constexpr double MiB = 1024 * 1024;
+  NOTICE_LOG(DISCIO, "Converted %lf MiB to %lf MiB in %lf seconds.", infile->GetDataSize() / MiB,
+             file_end / MiB, seconds);
 
   return ConversionResultCode::Success;
 }
@@ -2031,38 +2022,21 @@ bool ConvertToWIAOrRVZ(BlobReader* infile, const std::string& infile_path,
                        WIARVZCompressionType compression_type, int compression_level,
                        int chunk_size, CompressCB callback)
 {
-  File::IOFile outfile(outfile_path, "wb");
-  if (!outfile)
-  {
-    PanicAlertT("Failed to open the output file \"%s\".\n"
-                "Check that you have permissions to write the target folder and that the media can "
-                "be written.",
-                outfile_path.c_str());
-    return false;
-  }
+  NOTICE_LOG(DISCIO, "Converting %s", infile_path.c_str());
 
   std::unique_ptr<VolumeDisc> infile_volume = CreateDisc(infile_path);
 
   const auto convert = rvz ? RVZFileReader::Convert : WIAFileReader::Convert;
-  const ConversionResultCode result =
-      convert(infile, infile_volume.get(), &outfile, compression_type, compression_level,
-              chunk_size, callback);
+  const ConversionResultCode result = convert(infile, infile_volume.get(), compression_type,
+                                              compression_level, chunk_size, callback);
 
   if (result == ConversionResultCode::ReadFailed)
     PanicAlertT("Failed to read from the input file \"%s\".", infile_path.c_str());
 
   if (result == ConversionResultCode::WriteFailed)
   {
-    PanicAlertT("Failed to write the output file \"%s\".\n"
-                "Check that you have enough space available on the target drive.",
-                outfile_path.c_str());
-  }
-
-  if (result != ConversionResultCode::Success)
-  {
-    // Remove the incomplete output file
-    outfile.Close();
-    File::Delete(outfile_path);
+    PanicAlertT("Failed to write the output file.\n"
+                "Check that you have enough space available on the target drive.");
   }
 
   return result == ConversionResultCode::Success;

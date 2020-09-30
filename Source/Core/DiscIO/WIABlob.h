@@ -63,8 +63,8 @@ public:
   bool ReadWiiDecrypted(u64 offset, u64 size, u8* out_ptr, u64 partition_data_offset) override;
 
   static ConversionResultCode Convert(BlobReader* infile, const VolumeDisc* infile_volume,
-                                      File::IOFile* outfile, WIARVZCompressionType compression_type,
-                                      int compression_level, int chunk_size, CompressCB callback);
+                                      WIARVZCompressionType compression_type, int compression_level,
+                                      int chunk_size, CompressCB callback);
 
 private:
   using SHA1 = std::array<u8, 20>;
@@ -314,7 +314,7 @@ private:
     size_t group_index;
   };
 
-  static bool PadTo4(File::IOFile* file, u64* bytes_written);
+  static bool PadTo4(u64* bytes_written);
   static void AddRawDataEntry(u64 offset, u64 size, int chunk_size, u32* total_groups,
                               std::vector<RawDataEntry>* raw_data_entries,
                               std::vector<DataEntry>* data_entries);
@@ -328,8 +328,8 @@ private:
       std::vector<DataEntry>* data_entries, std::vector<const FileSystem*>* partition_file_systems);
   static std::optional<std::vector<u8>> Compress(Compressor* compressor, const u8* data,
                                                  size_t size);
-  static bool WriteHeader(File::IOFile* file, const u8* data, size_t size, u64 upper_bound,
-                          u64* bytes_written, u64* offset_out);
+  static bool WriteHeader(const u8* data, size_t size, u64 upper_bound, u64* bytes_written,
+                          u64* offset_out, u64 file_end);
 
   static void SetUpCompressor(std::unique_ptr<Compressor>* compressor,
                               WIARVZCompressionType compression_type, int compression_level,
@@ -345,7 +345,6 @@ private:
                      u64 exception_lists_per_chunk, bool compressed_exception_lists,
                      bool compression);
   static ConversionResultCode Output(std::vector<OutputParametersEntry>* entries,
-                                     File::IOFile* outfile,
                                      std::map<ReuseID, GroupEntry>* reusable_groups,
                                      std::mutex* reusable_groups_mutex, GroupEntry* group_entry,
                                      u64* bytes_written);
