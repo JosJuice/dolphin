@@ -145,7 +145,9 @@ void ConvertDialog::OnFormatChanged()
 
   // For performance reasons, blocks shouldn't be too large.
   // 2 MiB (0x200000) was picked because it is the smallest block size supported by WIA.
-  constexpr int MAX_BLOCK_SIZE = 0x200000;
+  constexpr int MAX_BLOCK_SIZE = 0x4000000;
+
+  constexpr int WIA_MIN_BLOCK_SIZE = 0x200000;
 
   const DiscIO::BlobType format = static_cast<DiscIO::BlobType>(m_format->currentData().toInt());
 
@@ -195,8 +197,8 @@ void ConvertDialog::OnFormatChanged()
   case DiscIO::BlobType::WIA:
     m_block_size->setEnabled(true);
 
-    // This is the smallest block size supported by WIA. For performance, larger sizes are avoided.
-    AddToBlockSizeComboBox(0x200000);
+    for (int block_size = WIA_MIN_BLOCK_SIZE; block_size <= MAX_BLOCK_SIZE; block_size *= 2)
+      AddToBlockSizeComboBox(block_size);
 
     break;
   case DiscIO::BlobType::RVZ:

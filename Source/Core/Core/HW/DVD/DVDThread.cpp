@@ -333,14 +333,14 @@ static void FinishRead(u64 id, s64 cycles_late)
   const ReadRequest& request = result.first;
   const std::vector<u8>& buffer = result.second;
 
-  DEBUG_LOG(DVDINTERFACE,
-            "Disc has been read. Real time: %" PRIu64 " us. "
-            "Real time including delay: %" PRIu64 " us. "
-            "Emulated time including delay: %" PRIu64 " us.",
-            request.realtime_done_us - request.realtime_started_us,
-            Common::Timer::GetTimeUs() - request.realtime_started_us,
-            (CoreTiming::GetTicks() - request.time_started_ticks) /
-                (SystemTimers::GetTicksPerSecond() / 1000000));
+  NOTICE_LOG(DVDINTERFACE,
+             "Disc has been read. Real time: %" PRIu64 " us. "
+             "Real time including delay: %" PRIu64 " us. "
+             "Emulated time including delay: %" PRIu64 " us.",
+             request.realtime_done_us - request.realtime_started_us,
+             Common::Timer::GetTimeUs() - request.realtime_started_us,
+             (CoreTiming::GetTicks() - request.time_started_ticks) /
+                 (SystemTimers::GetTicksPerSecond() / 1000000));
 
   DVDInterface::DIInterruptType interrupt;
   if (buffer.size() != request.length)
