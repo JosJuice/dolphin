@@ -158,9 +158,27 @@ BootParameters::GenerateFromFile(std::vector<std::string> paths,
   if (paths.size() == 1)
     paths.clear();
 
-  static const std::unordered_set<std::string> disc_image_extensions = {
-      {".gcm", ".iso", ".tgc", ".wbfs", ".ciso", ".gcz", ".wia", ".rvz", ".dol", ".elf"}};
-  if (disc_image_extensions.find(extension) != disc_image_extensions.end() || is_drive)
+  static const std::vector<std::string> supported_extensions = {".ciso", ".dff", ".dol",  ".elf",
+                                                                ".gcm",  ".gcz", ".iso",  ".rvz",
+                                                                ".tgc",  ".wad", ".wbfs", ".wia"};
+
+  if (extension == ".dff")
+    return std::make_unique<BootParameters>(DFF{std::move(path)}, savestate_path);
+
+  if (extension == ".wad")
+  {
+    std::unique_ptr<DiscIO::VolumeWAD> wad = DiscIO::CreateWAD(path);
+    if (wad)
+      return std::make_unique<BootParameters>(std::move(*wad), savestate_path);
+
+    PanicAlertT("\"%s\" is not a valid Wii WAD file.", path.c_str());
+    return {};
+  }
+
+  const bool valid_extension = std::find(supported_extensions.cbegin(), supported_extensions.cend(),
+                                         extension) != supported_extensions.cend();
+
+  if (valid_extension || is_drive)
   {
     std::unique_ptr<DiscIO::VolumeDisc> disc = DiscIO::CreateDisc(path);
     if (disc)
@@ -198,17 +216,8 @@ BootParameters::GenerateFromFile(std::vector<std::string> paths,
     return {};
   }
 
-  if (extension == ".dff")
-    return std::make_unique<BootParameters>(DFF{std::move(path)}, savestate_path);
-
-  if (extension == ".wad")
-  {
-    std::unique_ptr<DiscIO::VolumeWAD> wad = DiscIO::CreateWAD(std::move(path));
-    if (wad)
-      return std::make_unique<BootParameters>(std::move(*wad), savestate_path);
-  }
-
-  PanicAlertT("Could not recognize file %s", path.c_str());
+  PanicAlertT("The file type \"%s\" is not supported.\n\nSupported file types: %s",
+              extension.c_str(), JoinStrings(supported_extensions, ", ").c_str());
   return {};
 }
 
