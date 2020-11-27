@@ -19,7 +19,7 @@
 // memory base register
 constexpr Arm64Gen::ARM64Reg MEM_REG = Arm64Gen::X28;
 // ppcState pointer
-constexpr Arm64Gen::ARM64Reg PPC_REG = Arm64Gen::X29;
+constexpr Arm64Gen::ARM64Reg PPC_REG = Arm64Gen::X27;
 // PC register when calling the dispatcher
 constexpr Arm64Gen::ARM64Reg DISPATCHER_PC = Arm64Gen::W26;
 

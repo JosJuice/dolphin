@@ -316,7 +316,6 @@ void Arm64GPRCache::GetAllocationOrder()
   // Callee saved registers first in hopes that we will keep everything stored there first
   static constexpr std::array<ARM64Reg, 29> allocation_order{{
       // Callee saved
-      W27,
       W26,
       W25,
       W24,

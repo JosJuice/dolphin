@@ -94,7 +94,7 @@ void JitArm64::GenerateAsm()
 
     // iCache[(address >> 2) & iCache_Mask];
     ARM64Reg pc_masked = W25;
-    ARM64Reg cache_base = X27;
+    ARM64Reg cache_base = X24;
     ARM64Reg block = X30;
     ORRI2R(pc_masked, WZR, JitBaseBlockCache::FAST_BLOCK_MAP_MASK << 3);
     AND(pc_masked, pc_masked, DISPATCHER_PC, ArithOption(DISPATCHER_PC, ST_LSL, 1));
