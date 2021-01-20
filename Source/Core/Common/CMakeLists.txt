@@ -196,8 +196,20 @@ if(_M_ARM_64)
     Arm64Emitter.h
     ArmCommon.h
     ArmCPUDetect.cpp
-    GenericFPURoundMode.cpp
+    ArmFPURoundMode.cpp
   )
+
+  if (MSVC)
+    target_sources(common PRIVATE ArmFPURoundModeAsm.asm)
+
+    # CMake doesn't really support MARMASM. We only need this for one file, so let's just invoke armasm64.exe manually
+    find_file(ARMASM64_PATH "armasm64.exe" REQUIRED)
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/ArmFPURoundModeAsm.obj
+      COMMAND ${ARMASM64_PATH} -o ${CMAKE_CURRENT_BINARY_DIR}/ArmFPURoundModeAsm.obj ${CMAKE_CURRENT_SOURCE_DIR}/ArmFPURoundModeAsm.asm /nologo
+      MAIN_DEPENDENCY ArmFPURoundModeAsm.asm
+    )
+    target_link_libraries(common PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/ArmFPURoundModeAsm.obj)
+  endif()
 else()
   if(_M_X86) #X86
     target_sources(common PRIVATE

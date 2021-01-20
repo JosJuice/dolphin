@@ -370,6 +370,10 @@
     <ClCompile Include="ArmCPUDetect.cpp" />
     <ClCompile Include="Arm64Emitter.cpp" />
     <ClCompile Include="GenericFPURoundMode.cpp" />
+    <ClCompile Include="ArmFPURoundMode.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <MARMASM Include="ArmFPURoundModeAsm.asm" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="CMakeLists.txt" />
