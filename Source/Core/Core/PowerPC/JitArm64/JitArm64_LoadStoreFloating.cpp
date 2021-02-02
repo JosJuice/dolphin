@@ -218,7 +218,7 @@ void JitArm64::stfXX(UGeckoInstruction inst)
       offset_reg = b;
       break;
     case 983:  // stfiwx
-      flags |= BackPatchInfo::FLAG_SIZE_F32I;
+      flags |= BackPatchInfo::FLAG_SIZE_F32;
       offset_reg = b;
       break;
     }
@@ -245,14 +245,16 @@ void JitArm64::stfXX(UGeckoInstruction inst)
   gpr.Lock(W0, W1, W30);
   fpr.Lock(Q0);
 
-  const bool single = (flags & BackPatchInfo::FLAG_SIZE_F32) && fpr.IsSingle(inst.FS, true);
+  const bool want_single = (flags & BackPatchInfo::FLAG_SIZE_F32);
+  const bool have_single = fpr.IsSingle(inst.FS, true);
 
-  const ARM64Reg V0 = fpr.R(inst.FS, single ? RegType::LowerPairSingle : RegType::LowerPair);
+  ARM64Reg V0 =
+      fpr.R(inst.FS, want_single && have_single ? RegType::LowerPairSingle : RegType::LowerPair);
 
-  if (single)
+  if (want_single && !have_single)
   {
-    flags &= ~BackPatchInfo::FLAG_SIZE_F32;
-    flags |= BackPatchInfo::FLAG_SIZE_F32I;
+    m_float_emit.FCVT(32, 64, D0, EncodeRegToDouble(V0));
+    V0 = D0;
   }
 
   ARM64Reg addr_reg = W1;
@@ -359,19 +361,11 @@ void JitArm64::stfXX(UGeckoInstruction inst)
         accessSize = 32;
 
       LDR(IndexType::Unsigned, X0, PPC_REG, PPCSTATE_OFF(gather_pipe_ptr));
+
       if (flags & BackPatchInfo::FLAG_SIZE_F64)
-      {
         m_float_emit.REV64(8, Q0, V0);
-      }
       else if (flags & BackPatchInfo::FLAG_SIZE_F32)
-      {
-        m_float_emit.FCVT(32, 64, D0, EncodeRegToDouble(V0));
-        m_float_emit.REV32(8, D0, D0);
-      }
-      else if (flags & BackPatchInfo::FLAG_SIZE_F32I)
-      {
         m_float_emit.REV32(8, D0, V0);
-      }
 
       m_float_emit.STR(accessSize, IndexType::Post, accessSize == 64 ? Q0 : D0, X0,
                        accessSize >> 3);

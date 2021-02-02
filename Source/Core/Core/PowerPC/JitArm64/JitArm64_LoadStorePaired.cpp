@@ -119,10 +119,21 @@ void JitArm64::psq_st(UGeckoInstruction inst)
   gpr.Lock(W0, W1, W2, W30);
   fpr.Lock(Q0, Q1);
 
-  const bool single = fpr.IsSingle(inst.RS);
+  const bool have_single = fpr.IsSingle(inst.RS, true);
+
+  ARM64Reg VS = fpr.R(inst.RS, have_single ? RegType::Single : RegType::Register);
+
+  if (!have_single)
+  {
+    if (inst.W)
+      m_float_emit.FCVT(32, 64, D0, VS);
+    else
+      m_float_emit.FCVTN(32, D0, VS);
+
+    VS = D0;
+  }
 
   const ARM64Reg arm_addr = gpr.R(inst.RA);
-  const ARM64Reg VS = fpr.R(inst.RS, single ? RegType::Single : RegType::Register);
 
   constexpr ARM64Reg scale_reg = W0;
   constexpr ARM64Reg addr_reg = W1;
@@ -157,27 +168,15 @@ void JitArm64::psq_st(UGeckoInstruction inst)
   {
     u32 flags = BackPatchInfo::FLAG_STORE;
 
-    if (single)
-      flags |= (inst.W ? BackPatchInfo::FLAG_SIZE_F32I : BackPatchInfo::FLAG_SIZE_F32X2I);
-    else
-      flags |= (inst.W ? BackPatchInfo::FLAG_SIZE_F32 : BackPatchInfo::FLAG_SIZE_F32X2);
+    flags |= (inst.W ? BackPatchInfo::FLAG_SIZE_F32 : BackPatchInfo::FLAG_SIZE_F32X2);
 
     EmitBackpatchRoutine(flags, jo.fastmem, jo.fastmem, VS, EncodeRegTo64(addr_reg), gprs_in_use,
                          fprs_in_use);
   }
   else
   {
-    if (single)
-    {
+    if (D0 != VS)
       m_float_emit.ORR(D0, VS, VS);
-    }
-    else
-    {
-      if (inst.W)
-        m_float_emit.FCVT(32, 64, D0, VS);
-      else
-        m_float_emit.FCVTN(32, D0, VS);
-    }
 
     LDR(IndexType::Unsigned, scale_reg, PPC_REG, PPCSTATE_OFF(spr[SPR_GQR0 + inst.I]));
     UBFM(type_reg, scale_reg, 0, 2);    // Type
