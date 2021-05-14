@@ -10,6 +10,7 @@
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
 #include "Common/PerformanceCounter.h"
+#include "Common/Profiler.h"
 #include "Common/StringUtil.h"
 
 #include "Core/ConfigManager.h"
@@ -142,6 +143,16 @@ void JitArm64::Shutdown()
   FreeStack();
 }
 
+static void StartProfiling(Common::Profiler* profiler)
+{
+  profiler->Start();
+}
+
+static void StopProfiling(Common::Profiler* profiler)
+{
+  profiler->Stop();
+}
+
 void JitArm64::FallBackToInterpreter(UGeckoInstruction inst)
 {
   FlushCarry();
@@ -159,9 +170,20 @@ void JitArm64::FallBackToInterpreter(UGeckoInstruction inst)
     gpr.Unlock(WA);
   }
 
+  if (!js.op->opinfo->profiler)
+    js.op->opinfo->profiler = new Common::Profiler(js.op->opinfo->opname);
+
+  MOVP2R(ARM64Reg::X8, &StartProfiling);
+  MOVP2R(ARM64Reg::X0, js.op->opinfo->profiler);
+  BLR(ARM64Reg::X8);
+
   Interpreter::Instruction instr = PPCTables::GetInterpreterOp(inst);
   MOVP2R(ARM64Reg::X8, instr);
   MOVI2R(ARM64Reg::W0, inst.hex);
+  BLR(ARM64Reg::X8);
+
+  MOVP2R(ARM64Reg::X8, &StopProfiling);
+  MOVP2R(ARM64Reg::X0, js.op->opinfo->profiler);
   BLR(ARM64Reg::X8);
 
   // If the instruction wrote to any registers which were marked as discarded,

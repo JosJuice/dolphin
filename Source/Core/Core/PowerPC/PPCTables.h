@@ -7,6 +7,7 @@
 #include <cstddef>
 
 #include "Common/CommonTypes.h"
+#include "Common/Profiler.h"
 #include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/Interpreter/Interpreter.h"
 
@@ -93,6 +94,13 @@ enum class OpType
 
 struct GekkoOPInfo
 {
+  GekkoOPInfo(const char* opname_, OpType type_, u64 flags_, int numCycles_, u64 runCount_,
+              int compileCount_, u32 lastUse_)
+      : opname(opname_), type(type_), flags(flags_), numCycles(numCycles_), runCount(runCount_),
+        compileCount(compileCount_), lastUse(lastUse_)
+  {
+  }
+
   const char* opname;
   OpType type;
   u64 flags;
@@ -100,6 +108,7 @@ struct GekkoOPInfo
   u64 runCount;
   int compileCount;
   u32 lastUse;
+  Common::Profiler* profiler = nullptr;
 };
 extern std::array<GekkoOPInfo*, 64> m_infoTable;
 extern std::array<GekkoOPInfo*, 1024> m_infoTable4;
