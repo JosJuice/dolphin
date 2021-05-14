@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -20,6 +21,18 @@ namespace detail
 // std::underlying_type may only be used with enum types, so make sure T is an enum type first.
 template <typename T>
 using UnderlyingType = typename std::enable_if_t<std::is_enum<T>{}, std::underlying_type<T>>::type;
+
+template <typename T>
+constexpr bool HasAtomic = std::is_trivially_copyable_v<T>&& std::is_copy_constructible_v<T>&&
+    std::is_move_constructible_v<T>&& std::is_copy_assignable_v<T>&& std::is_move_assignable_v<T>;
+
+template <typename, typename = void>
+constexpr bool HasLockFreeAtomic = false;
+
+template <typename T>
+constexpr bool HasLockFreeAtomic<T, std::enable_if<HasAtomic<T>>> =
+    std::atomic<T>::is_always_lock_free;
+
 }  // namespace detail
 
 struct Location
@@ -41,14 +54,14 @@ struct CachedValue
 };
 
 template <typename T>
-class ThreadsafeCachedValue
+class MutexCachedValue
 {
 public:
-  ThreadsafeCachedValue() {}
+  MutexCachedValue() {}
 
-  ThreadsafeCachedValue(T value, u64 config_version) : m_cached_value{value, config_version} {}
+  MutexCachedValue(T value, u64 config_version) : m_cached_value{value, config_version} {}
 
-  ThreadsafeCachedValue(CachedValue<T> cached_value) : m_cached_value{cached_value} {}
+  MutexCachedValue(CachedValue<T> cached_value) : m_cached_value{cached_value} {}
 
   CachedValue<T> GetCachedValue()
   {
@@ -71,14 +84,14 @@ public:
   }
 
   // Not thread-safe
-  ThreadsafeCachedValue<T>& operator=(const CachedValue<T>& cached_value)
+  MutexCachedValue<T>& operator=(const CachedValue<T>& cached_value)
   {
     m_cached_value = cached_value;
     return *this;
   }
 
   // Not thread-safe
-  ThreadsafeCachedValue<T>& operator=(CachedValue<T>&& cached_value)
+  MutexCachedValue<T>& operator=(CachedValue<T>&& cached_value)
   {
     m_cached_value = std::move(cached_value);
     return *this;
@@ -88,6 +101,56 @@ private:
   CachedValue<T> m_cached_value;
   std::shared_mutex m_mutex;
 };
+
+template <typename T>
+class AtomicCachedValue
+{
+public:
+  AtomicCachedValue() {}
+
+  AtomicCachedValue(T value, u64 config_version) : m_cached_value{value, config_version} {}
+
+  AtomicCachedValue(CachedValue<T> cached_value) : m_cached_value{cached_value} {}
+
+  CachedValue<T> GetCachedValue() { return m_cached_value.load(std::memory_order_relaxed); }
+
+  template <typename U>
+  CachedValue<U> GetCachedValueCasted()
+  {
+    CachedValue<T> cached_value = m_cached_value.load(std::memory_order_relaxed);
+    return CachedValue<U>{static_cast<U>(cached_value.value), cached_value.config_version};
+  }
+
+  void SetCachedValue(const CachedValue<T>& cached_value)
+  {
+    CachedValue<T> old_cached_value = m_cached_value.load(std::memory_order_relaxed);
+
+    while (true)
+    {
+      if (old_cached_value.config_version >= cached_value.config_version)
+        return;  // Already up to date
+
+      if (m_cached_value.compare_exchange_weak(old_cached_value, cached_value,
+                                               std::memory_order_relaxed))
+      {
+        return;  // Update succeeded
+      }
+    }
+  }
+
+  AtomicCachedValue<T>& operator=(CachedValue<T> cached_value)
+  {
+    m_cached_value.store(std::move(cached_value), std::memory_order_relaxed);
+    return *this;
+  }
+
+private:
+  std::atomic<CachedValue<T>> m_cached_value;
+};
+
+template <typename T>
+using ThreadsafeCachedValue = std::conditional_t<detail::HasLockFreeAtomic<CachedValue<T>>,
+                                                 AtomicCachedValue<T>, MutexCachedValue<T>>;
 
 template <typename T>
 class Info
