@@ -27,7 +27,7 @@ void AddConfigChangedCallback(ConfigChangedCallback func);
 void OnConfigChanged();
 
 // Returns the number of times the config has changed in the current execution of the program
-u64 GetConfigVersion();
+u32 GetConfigVersion();
 
 // Explicit load and save of layers
 void Load();
@@ -56,9 +56,9 @@ template <typename T>
 T Get(const Info<T>& info)
 {
   CachedValue<T> cached = info.GetCachedValue();
-  const u64 config_version = GetConfigVersion();
+  const u32 config_version = GetConfigVersion();
 
-  if (cached.config_version < config_version)
+  if (IsConfigVersionLess(cached.config_version, config_version))
   {
     cached.value = GetUncached(info);
     cached.config_version = config_version;

@@ -32,4 +32,10 @@ bool Location::operator<(const Location& other) const
   const int key_compare = strcasecmp(key.c_str(), other.key.c_str());
   return key_compare < 0;
 }
+
+bool IsConfigVersionLess(u32 lhs, u32 rhs)
+{
+  return Common::BitCast<s32>(lhs - rhs) < 0;
+}
+
 }  // namespace Config

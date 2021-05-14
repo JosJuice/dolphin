@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "Common/BitUtils.h"
 #include "Common/CommonTypes.h"
 #include "Common/Config/Enums.h"
 
@@ -50,8 +51,10 @@ template <typename T>
 struct CachedValue
 {
   T value;
-  u64 config_version;
+  u32 config_version;
 };
+
+bool IsConfigVersionLess(u32 lhs, u32 rhs);
 
 template <typename T>
 class MutexCachedValue
@@ -59,7 +62,7 @@ class MutexCachedValue
 public:
   MutexCachedValue() {}
 
-  MutexCachedValue(T value, u64 config_version) : m_cached_value{value, config_version} {}
+  MutexCachedValue(T value, u32 config_version) : m_cached_value{value, config_version} {}
 
   MutexCachedValue(CachedValue<T> cached_value) : m_cached_value{cached_value} {}
 
@@ -79,7 +82,7 @@ public:
   void SetCachedValue(const CachedValue<T>& cached_value)
   {
     std::unique_lock lock(m_mutex);
-    if (m_cached_value.config_version < cached_value.config_version)
+    if (IsConfigVersionLess(m_cached_value.config_version, cached_value.config_version))
       m_cached_value = cached_value;
   }
 
@@ -108,7 +111,7 @@ class AtomicCachedValue
 public:
   AtomicCachedValue() {}
 
-  AtomicCachedValue(T value, u64 config_version) : m_cached_value{value, config_version} {}
+  AtomicCachedValue(T value, u32 config_version) : m_cached_value{value, config_version} {}
 
   AtomicCachedValue(CachedValue<T> cached_value) : m_cached_value{cached_value} {}
 
@@ -127,7 +130,7 @@ public:
 
     while (true)
     {
-      if (old_cached_value.config_version >= cached_value.config_version)
+      if (!IsConfigVersionLess(old_cached_value.config_version, cached_value.config_version))
         return;  // Already up to date
 
       if (m_cached_value.compare_exchange_weak(old_cached_value, cached_value,

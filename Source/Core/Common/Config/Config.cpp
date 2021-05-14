@@ -18,7 +18,7 @@ using Layers = std::map<LayerType, std::shared_ptr<Layer>>;
 static Layers s_layers;
 static std::list<ConfigChangedCallback> s_callbacks;
 static u32 s_callback_guards = 0;
-static std::atomic<u64> s_config_version = 0;
+static std::atomic<u32> s_config_version = 0;
 
 static std::shared_mutex s_layers_rw_lock;
 
@@ -83,7 +83,7 @@ void OnConfigChanged()
     callback();
 }
 
-u64 GetConfigVersion()
+u32 GetConfigVersion()
 {
   return s_config_version.load(std::memory_order_relaxed);
 }
