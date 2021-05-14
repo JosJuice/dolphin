@@ -41,6 +41,55 @@ struct CachedValue
 };
 
 template <typename T>
+class ThreadsafeCachedValue
+{
+public:
+  ThreadsafeCachedValue() {}
+
+  ThreadsafeCachedValue(T value, u64 config_version) : m_cached_value{value, config_version} {}
+
+  ThreadsafeCachedValue(CachedValue<T> cached_value) : m_cached_value{cached_value} {}
+
+  CachedValue<T> GetCachedValue()
+  {
+    std::shared_lock lock(m_mutex);
+    return m_cached_value;
+  }
+
+  template <typename U>
+  CachedValue<U> GetCachedValueCasted()
+  {
+    std::shared_lock lock(m_mutex);
+    return CachedValue<U>{static_cast<U>(m_cached_value.value), m_cached_value.config_version};
+  }
+
+  void SetCachedValue(const CachedValue<T>& cached_value)
+  {
+    std::unique_lock lock(m_mutex);
+    if (m_cached_value.config_version < cached_value.config_version)
+      m_cached_value = cached_value;
+  }
+
+  // Not thread-safe
+  ThreadsafeCachedValue<T>& operator=(const CachedValue<T>& cached_value)
+  {
+    m_cached_value = cached_value;
+    return *this;
+  }
+
+  // Not thread-safe
+  ThreadsafeCachedValue<T>& operator=(CachedValue<T>&& cached_value)
+  {
+    m_cached_value = std::move(cached_value);
+    return *this;
+  }
+
+private:
+  CachedValue<T> m_cached_value;
+  std::shared_mutex m_mutex;
+};
+
+template <typename T>
 class Info
 {
 public:
@@ -63,6 +112,7 @@ public:
     *this = other;
   }
 
+  // Not thread-safe
   Info<T>& operator=(const Info<T>& other)
   {
     m_location = other.GetLocation();
@@ -95,31 +145,23 @@ public:
   constexpr const Location& GetLocation() const { return m_location; }
   constexpr const T& GetDefaultValue() const { return m_default_value; }
 
-  CachedValue<T> GetCachedValue() const
-  {
-    std::shared_lock lock(m_cached_value_mutex);
-    return m_cached_value;
-  }
+  CachedValue<T> GetCachedValue() const { return m_cached_value.GetCachedValue(); }
 
   template <typename U>
   CachedValue<U> GetCachedValueCasted() const
   {
-    std::shared_lock lock(m_cached_value_mutex);
-    return CachedValue<U>{static_cast<U>(m_cached_value.value), m_cached_value.config_version};
+    return m_cached_value.template GetCachedValueCasted<U>();
   }
 
   void SetCachedValue(const CachedValue<T>& cached_value) const
   {
-    std::unique_lock lock(m_cached_value_mutex);
-    if (m_cached_value.config_version < cached_value.config_version)
-      m_cached_value = cached_value;
+    return m_cached_value.SetCachedValue(cached_value);
   }
 
 private:
   Location m_location;
   T m_default_value;
 
-  mutable CachedValue<T> m_cached_value;
-  mutable std::shared_mutex m_cached_value_mutex;
+  mutable ThreadsafeCachedValue<T> m_cached_value;
 };
 }  // namespace Config
