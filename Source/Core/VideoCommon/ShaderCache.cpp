@@ -188,7 +188,7 @@ template <typename SerializedUidType, typename UidType>
 static void SerializePipelineUid(const UidType& uid, SerializedUidType& serialized_uid)
 {
   // Convert to disk format. Ensure all padding bytes are zero.
-  std::memset(&serialized_uid, 0, sizeof(serialized_uid));
+  std::memset(reinterpret_cast<u8*>(&serialized_uid), 0, sizeof(serialized_uid));
   serialized_uid.vertex_decl = uid.vertex_format->GetVertexDeclaration();
   serialized_uid.vs_uid = uid.vs_uid;
   serialized_uid.gs_uid = uid.gs_uid;
@@ -1115,7 +1115,7 @@ void ShaderCache::QueueUberShaderPipelines()
     {
       // uint_output is only ever enabled when logic ops are enabled.
       config.blending_state.logicopenable = true;
-      config.blending_state.logicmode = BlendMode::AND;
+      config.blending_state.logicmode = LogicOp::And;
     }
 
     auto iter = m_gx_uber_pipeline_cache.find(config);

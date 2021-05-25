@@ -4,21 +4,27 @@
 
 // Originally written by Sven Peter <sven@fail0verflow.com> for anergistic.
 
+#include <optional>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #ifdef _WIN32
+#include <WinSock2.h>
 #include <iphlpapi.h>
 #include <ws2tcpip.h>
+typedef SSIZE_T ssize_t;
+#define SHUT_RDWR SD_BOTH
 #else
 #include <netinet/in.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <unistd.h>
 #endif
 
 #include "Common/Logging/Log.h"
+#include "Common/SocketContext.h"
 #include "Core/HW/CPU.h"
 #include "Core/HW/Memmap.h"
 #include "Core/Host.h"
@@ -26,6 +32,11 @@
 #include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/PPCCache.h"
 #include "Core/PowerPC/PowerPC.h"
+
+namespace
+{
+std::optional<Common::SocketContext> s_socket_context;
+}  // namespace
 
 #define GDB_BFR_MAX 10000
 #define GDB_MAX_BP 10
@@ -108,7 +119,7 @@ static u8 gdb_read_byte()
 {
   u8 c = '+';
 
-  const ssize_t res = recv(sock, &c, 1, MSG_WAITALL);
+  const ssize_t res = recv(sock, (char*)&c, 1, MSG_WAITALL);
   if (res != 1)
   {
     ERROR_LOG_FMT(GDB_STUB, "recv failed : {}", res);
@@ -240,7 +251,7 @@ static void gdb_read_command()
   cmd_len = 0;
   memset(cmd_bfr, 0, sizeof cmd_bfr);
 
-  const u8 c = gdb_read_byte();
+  u8 c = gdb_read_byte();
   if (c == '+')
   {
     // ignore ack
@@ -319,7 +330,7 @@ static void gdb_reply(const char* reply)
 
   memset(cmd_bfr, 0, sizeof cmd_bfr);
 
-  cmd_len = strlen(reply);
+  cmd_len = (u32)strlen(reply);
   if (cmd_len + 4 > sizeof cmd_bfr)
     ERROR_LOG_FMT(GDB_STUB, "cmd_bfr overflow in gdb_reply");
 
@@ -335,7 +346,7 @@ static void gdb_reply(const char* reply)
 
   DEBUG_LOG_FMT(GDB_STUB, "gdb: reply (len: {}): {}", cmd_len, CommandBufferAsString());
 
-  u8* ptr = cmd_bfr;
+  const char* ptr = (const char*)cmd_bfr;
   u32 left = cmd_len + 4;
   while (left > 0)
   {
@@ -427,41 +438,46 @@ static void gdb_read_register()
     id |= hex2char(cmd_bfr[2]);
   }
 
-  switch (id)
+  if (id < 32)
   {
-  case 0 ... 31:
     wbe32hex(reply, GPR(id));
-    break;
-  case 32 ... 63:
+  }
+  else if (id >= 32 && id < 64)
+  {
     wbe64hex(reply, rPS(id - 32).PS0AsU64());
-    break;
-  case 64:
-    wbe32hex(reply, PC);
-    break;
-  case 65:
-    wbe32hex(reply, MSR.Hex);
-    break;
-  case 66:
-    wbe32hex(reply, PowerPC::ppcState.cr.Get());
-    break;
-  case 67:
-    wbe32hex(reply, LR);
-    break;
-  case 68:
-    wbe32hex(reply, CTR);
-    break;
-  case 69:
-    wbe32hex(reply, PowerPC::ppcState.spr[SPR_XER]);
-    break;
-  case 70:
-    wbe32hex(reply, 0x0BADC0DE);
-    break;
-  case 71:
-    wbe32hex(reply, FPSCR.Hex);
-    break;
-  default:
-    return gdb_reply("E01");
-    break;
+  }
+  else
+  {
+    switch (id)
+    {
+    case 64:
+      wbe32hex(reply, PC);
+      break;
+    case 65:
+      wbe32hex(reply, MSR.Hex);
+      break;
+    case 66:
+      wbe32hex(reply, PowerPC::ppcState.cr.Get());
+      break;
+    case 67:
+      wbe32hex(reply, LR);
+      break;
+    case 68:
+      wbe32hex(reply, CTR);
+      break;
+    case 69:
+      wbe32hex(reply, PowerPC::ppcState.spr[SPR_XER]);
+      break;
+    case 70:
+      wbe32hex(reply, 0x0BADC0DE);
+      break;
+    case 71:
+      wbe32hex(reply, FPSCR.Hex);
+      break;
+    default:
+      return gdb_reply("E01");
+      break;
+    }
   }
 
   gdb_reply((char*)reply);
@@ -512,41 +528,46 @@ static void gdb_write_register()
     id |= hex2char(cmd_bfr[2]);
   }
 
-  switch (id)
+  if (id < 32)
   {
-  case 0 ... 31:
     GPR(id) = re32hex(bufptr);
-    break;
-  case 32 ... 63:
+  }
+  else if (id >= 32 && id < 64)
+  {
     rPS(id - 32).SetPS0(re64hex(bufptr));
-    break;
-  case 64:
-    PC = re32hex(bufptr);
-    break;
-  case 65:
-    MSR.Hex = re32hex(bufptr);
-    break;
-  case 66:
-    PowerPC::ppcState.cr.Set(re32hex(bufptr));
-    break;
-  case 67:
-    LR = re32hex(bufptr);
-    break;
-  case 68:
-    CTR = re32hex(bufptr);
-    break;
-  case 69:
-    PowerPC::ppcState.spr[SPR_XER] = re32hex(bufptr);
-    break;
-  case 70:
-    // do nothing, we dont have MQ
-    break;
-  case 71:
-    FPSCR.Hex = re32hex(bufptr);
-    break;
-  default:
-    return gdb_reply("E01");
-    break;
+  }
+  else
+  {
+    switch (id)
+    {
+    case 64:
+      PC = re32hex(bufptr);
+      break;
+    case 65:
+      MSR.Hex = re32hex(bufptr);
+      break;
+    case 66:
+      PowerPC::ppcState.cr.Set(re32hex(bufptr));
+      break;
+    case 67:
+      LR = re32hex(bufptr);
+      break;
+    case 68:
+      CTR = re32hex(bufptr);
+      break;
+    case 69:
+      PowerPC::ppcState.spr[SPR_XER] = re32hex(bufptr);
+      break;
+    case 70:
+      // do nothing, we dont have MQ
+      break;
+    case 71:
+      FPSCR.Hex = re32hex(bufptr);
+      break;
+    default:
+      return gdb_reply("E01");
+      break;
+    }
   }
 
   gdb_reply("OK");
@@ -777,10 +798,6 @@ void gdb_handle_exception()
   }
 }
 
-#ifdef _WIN32
-WSADATA InitData;
-#endif
-
 // exported functions
 
 static void gdb_init_generic(int domain, const sockaddr* server_addr, socklen_t server_addrlen,
@@ -819,10 +836,7 @@ void gdb_init(u32 port)
 static void gdb_init_generic(int domain, const sockaddr* server_addr, socklen_t server_addrlen,
                              sockaddr* client_addr, socklen_t* client_addrlen)
 {
-#ifdef _WIN32
-  WSAStartup(MAKEWORD(2, 2), &InitData);
-#endif
-
+  s_socket_context.emplace();
   memset(bp_x, 0, sizeof bp_x);
   memset(bp_r, 0, sizeof bp_r);
   memset(bp_w, 0, sizeof bp_w);
@@ -833,7 +847,7 @@ static void gdb_init_generic(int domain, const sockaddr* server_addr, socklen_t 
     ERROR_LOG_FMT(GDB_STUB, "Failed to create gdb socket");
 
   int on = 1;
-  if (setsockopt(tmpsock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof on) < 0)
+  if (setsockopt(tmpsock, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof on) < 0)
     ERROR_LOG_FMT(GDB_STUB, "Failed to setsockopt");
 
   if (bind(tmpsock, server_addr, server_addrlen) < 0)
@@ -849,7 +863,11 @@ static void gdb_init_generic(int domain, const sockaddr* server_addr, socklen_t 
     ERROR_LOG_FMT(GDB_STUB, "Failed to accept gdb client");
   INFO_LOG_FMT(GDB_STUB, "Client connected.");
 
+#ifdef _WIN32
+  closesocket(tmpsock);
+#else
   close(tmpsock);
+#endif
   tmpsock = -1;
 }
 
@@ -866,9 +884,7 @@ void gdb_deinit()
     sock = -1;
   }
 
-#ifdef _WIN32
-  WSACleanup();
-#endif
+  s_socket_context.reset();
 }
 
 bool gdb_active()

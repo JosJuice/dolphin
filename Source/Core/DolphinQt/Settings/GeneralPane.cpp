@@ -16,11 +16,11 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-#include "Core/Analytics.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/UISettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
+#include "Core/DolphinAnalytics.h"
 #include "Core/PowerPC/PowerPC.h"
 
 #include "DolphinQt/QtUtils/ModalMessageBox.h"
@@ -55,6 +55,7 @@ GeneralPane::GeneralPane(QWidget* parent) : QWidget(parent)
 
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
           &GeneralPane::OnEmulationStateChanged);
+  connect(&Settings::Instance(), &Settings::ConfigChanged, this, &GeneralPane::LoadConfig);
 
   OnEmulationStateChanged(Core::GetState());
 }
@@ -235,6 +236,8 @@ void GeneralPane::CreateAnalytics()
 
 void GeneralPane::LoadConfig()
 {
+  const QSignalBlocker blocker(this);
+
   if (AutoUpdateChecker::SystemSupportsAutoUpdates())
   {
     const auto track = Settings::Instance().GetAutoUpdateTrack().toStdString();

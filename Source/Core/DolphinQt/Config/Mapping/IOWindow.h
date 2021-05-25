@@ -7,17 +7,17 @@
 #include <memory>
 #include <string>
 
+#include <QComboBox>
 #include <QDialog>
 #include <QString>
 #include <QSyntaxHighlighter>
 
 #include "Common/Flag.h"
-#include "InputCommon/ControllerInterface/Device.h"
+#include "InputCommon/ControllerInterface/CoreDevice.h"
 
 class ControlReference;
 class MappingWidget;
 class QAbstractButton;
-class QComboBox;
 class QDialogButtonBox;
 class QLineEdit;
 class QTableWidget;
@@ -43,6 +43,17 @@ public:
 
 protected:
   void highlightBlock(const QString& text) final override;
+};
+
+class QComboBoxWithMouseWheelDisabled : public QComboBox
+{
+  Q_OBJECT
+public:
+  explicit QComboBoxWithMouseWheelDisabled(QWidget* parent = nullptr) : QComboBox(parent) {}
+
+protected:
+  // Consumes event while doing nothing
+  void wheelEvent(QWheelEvent* event) override;
 };
 
 class IOWindow final : public QDialog
@@ -100,6 +111,7 @@ private:
   // Shared actions
   QPushButton* m_select_button;
   QComboBox* m_operators_combo;
+  QComboBox* m_variables_combo;
 
   // Input actions
   QPushButton* m_detect_button;

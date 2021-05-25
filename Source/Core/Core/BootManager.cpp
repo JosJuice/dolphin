@@ -81,6 +81,7 @@ private:
   bool bAccurateNaNs;
   bool bMMU;
   bool bLowDCBZHack;
+  bool bDisableICache;
   bool m_EnableJIT;
   bool bSyncGPU;
   int iSyncGpuMaxDistance;
@@ -113,6 +114,7 @@ void ConfigCache::SaveConfig(const SConfig& config)
   bSyncGPUOnSkipIdleHack = config.bSyncGPUOnSkipIdleHack;
   bFPRF = config.bFPRF;
   bAccurateNaNs = config.bAccurateNaNs;
+  bDisableICache = config.bDisableICache;
   bMMU = config.bMMU;
   m_EnableJIT = config.m_DSPEnableJIT;
   bSyncGPU = config.bSyncGPU;
@@ -158,6 +160,7 @@ void ConfigCache::RestoreConfig(SConfig* config)
   config->bSyncGPUOnSkipIdleHack = bSyncGPUOnSkipIdleHack;
   config->bFPRF = bFPRF;
   config->bAccurateNaNs = bAccurateNaNs;
+  config->bDisableICache = bDisableICache;
   config->bMMU = bMMU;
   config->bLowDCBZHack = bLowDCBZHack;
   config->m_DSPEnableJIT = m_EnableJIT;
@@ -269,6 +272,7 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
                       StartUp.bSyncGPUOnSkipIdleHack);
     core_section->Get("FPRF", &StartUp.bFPRF, StartUp.bFPRF);
     core_section->Get("AccurateNaNs", &StartUp.bAccurateNaNs, StartUp.bAccurateNaNs);
+    core_section->Get("DisableICache", &StartUp.bDisableICache, StartUp.bDisableICache);
     core_section->Get("MMU", &StartUp.bMMU, StartUp.bMMU);
     core_section->Get("LowDCBZHack", &StartUp.bLowDCBZHack, StartUp.bLowDCBZHack);
     core_section->Get("SyncGPU", &StartUp.bSyncGPU, StartUp.bSyncGPU);
@@ -380,6 +384,7 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     config_cache.bSetEXIDevice[2] = true;
     StartUp.bFPRF = netplay_settings.m_FPRF;
     StartUp.bAccurateNaNs = netplay_settings.m_AccurateNaNs;
+    StartUp.bDisableICache = netplay_settings.m_DisableICache;
     StartUp.bSyncGPUOnSkipIdleHack = netplay_settings.m_SyncOnSkipIdle;
     StartUp.bSyncGPU = netplay_settings.m_SyncGPU;
     StartUp.iSyncGpuMaxDistance = netplay_settings.m_SyncGpuMaxDistance;
@@ -402,9 +407,8 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
   // Override out-of-region languages/countries to prevent games from crashing or behaving oddly
   if (!StartUp.bOverrideRegionSettings)
   {
-    const int gc_language =
-        static_cast<int>(StartUp.GetLanguageAdjustedForRegion(false, StartUp.m_region));
-    StartUp.SelectedLanguage = gc_language - (gc_language > 0);
+    StartUp.SelectedLanguage =
+        DiscIO::ToGameCubeLanguage(StartUp.GetLanguageAdjustedForRegion(false, StartUp.m_region));
 
     if (StartUp.bWii)
     {
@@ -442,11 +446,24 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
   if (StartUp.bWii && DiscIO::IsNTSC(StartUp.m_region) && Config::Get(Config::SYSCONF_PAL60))
     Config::SetCurrent(Config::SYSCONF_PAL60, false);
 
-  // Ensure any new settings are written to the SYSCONF
+  Core::UpdateWantDeterminism(/*initial*/ true);
+
   if (StartUp.bWii)
   {
-    Core::BackupWiiSettings();
-    ConfigLoaders::SaveToSYSCONF(Config::LayerType::Meta);
+    Core::InitializeWiiRoot(Core::WantsDeterminism());
+
+    // Ensure any new settings are written to the SYSCONF
+    if (!Core::WantsDeterminism())
+    {
+      Core::BackupWiiSettings();
+      ConfigLoaders::SaveToSYSCONF(Config::LayerType::Meta);
+    }
+    else
+    {
+      ConfigLoaders::SaveToSYSCONF(Config::LayerType::Meta, [](const Config::Location& location) {
+        return Config::GetActiveLayerForConfig(location) >= Config::LayerType::Movie;
+      });
+    }
   }
 
   const bool load_ipl = !StartUp.bWii && !StartUp.bHLE_BS2 &&
@@ -481,11 +498,11 @@ static void RestoreSYSCONF()
   for (const auto& setting : Config::SYSCONF_SETTINGS)
   {
     std::visit(
-        [&](auto& info) {
+        [&](auto* info) {
           // If this setting was overridden, then we copy the base layer value back to the SYSCONF.
           // Otherwise we leave the new value in the SYSCONF.
-          if (Config::GetActiveLayerForConfig(info) == Config::LayerType::Base)
-            Config::SetBase(info, temp_layer.Get(info));
+          if (Config::GetActiveLayerForConfig(*info) == Config::LayerType::Base)
+            Config::SetBase(*info, temp_layer.Get(*info));
         },
         setting.config_info);
   }
@@ -495,8 +512,14 @@ static void RestoreSYSCONF()
 
 void RestoreConfig()
 {
-  Core::RestoreWiiSettings(Core::RestoreReason::EmulationEnd);
-  RestoreSYSCONF();
+  Core::ShutdownWiiRoot();
+
+  if (!Core::WiiRootIsTemporary())
+  {
+    Core::RestoreWiiSettings(Core::RestoreReason::EmulationEnd);
+    RestoreSYSCONF();
+  }
+
   Config::ClearCurrentRunLayer();
   Config::RemoveLayer(Config::LayerType::Movie);
   Config::RemoveLayer(Config::LayerType::Netplay);

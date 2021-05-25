@@ -9,7 +9,7 @@
 
 #include <QApplication>
 #include <QPushButton>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QString>
 #include <QTimer>
 
@@ -21,7 +21,7 @@
 namespace MappingCommon
 {
 constexpr auto INPUT_DETECT_INITIAL_TIME = std::chrono::seconds(3);
-constexpr auto INPUT_DETECT_CONFIRMATION_TIME = std::chrono::milliseconds(500);
+constexpr auto INPUT_DETECT_CONFIRMATION_TIME = std::chrono::milliseconds(0);
 constexpr auto INPUT_DETECT_MAXIMUM_TIME = std::chrono::seconds(5);
 
 constexpr auto OUTPUT_TEST_TIME = std::chrono::seconds(2);
@@ -51,8 +51,10 @@ QString GetExpressionForControl(const QString& control_name,
 
   if (quote == Quote::On)
   {
-    QRegExp reg(QStringLiteral("[a-zA-Z]+"));
-    if (!reg.exactMatch(expr))
+    // If our expression contains any non-alpha characters
+    // we should quote it
+    const QRegularExpression reg(QStringLiteral("[^a-zA-Z]"));
+    if (reg.match(expr).hasMatch())
       expr = QStringLiteral("`%1`").arg(expr);
   }
 
@@ -85,6 +87,8 @@ QString DetectExpression(QPushButton* button, ciface::Core::DeviceContainer& dev
   RemoveSpuriousTriggerCombinations(&detections);
 
   const auto timer = new QTimer(button);
+
+  timer->setSingleShot(true);
 
   button->connect(timer, &QTimer::timeout, [button, filter] {
     button->releaseMouse();

@@ -15,7 +15,8 @@ typedef pollfd pollfd_t;
 #define MALLOC(x) HeapAlloc(GetProcessHeap(), 0, (x))
 #define FREE(x) HeapFree(GetProcessHeap(), 0, (x))
 
-#elif defined(__linux__) or defined(__APPLE__) or defined(__FreeBSD__) or defined(__HAIKU__)
+#elif defined(__linux__) or defined(__APPLE__) or defined(__FreeBSD__) or defined(__NetBSD__) or   \
+    defined(__HAIKU__)
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/ioctl.h>
@@ -42,8 +43,10 @@ typedef struct pollfd pollfd_t;
 #endif
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <list>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -183,6 +186,7 @@ public:
   WiiSocket& operator=(WiiSocket&&) = default;
 
 private:
+  using Timeout = std::chrono::time_point<std::chrono::steady_clock>;
   struct sockop
   {
     Request request;
@@ -203,14 +207,20 @@ private:
   s32 CloseFd();
   s32 FCntl(u32 cmd, u32 arg);
 
+  const Timeout& GetTimeout();
+  void ResetTimeout();
+
   void DoSock(Request request, NET_IOCTL type);
   void DoSock(Request request, SSL_IOCTL type);
   void Update(bool read, bool write, bool except);
   bool IsValid() const { return fd >= 0; }
+
   s32 fd = -1;
   s32 wii_fd = -1;
   bool nonBlock = false;
   std::list<sockop> pending_sockops;
+
+  std::optional<Timeout> timeout;
 };
 
 class WiiSockMan

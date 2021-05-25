@@ -12,6 +12,8 @@
 #include <memory>
 #include <set>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "Common/CommonTypes.h"
@@ -98,19 +100,6 @@ typedef void (*CompiledCode)();
 class ValidBlockBitSet final
 {
 public:
-  enum
-  {
-    // ValidBlockBitSet covers the whole 32-bit address-space in 32-byte
-    // chunks.
-    // FIXME: Maybe we can get away with less? There isn't any actual
-    // RAM in most of this space.
-    VALID_BLOCK_MASK_SIZE = (1ULL << 32) / 32,
-    // The number of elements in the allocated array. Each u32 contains 32 bits.
-    VALID_BLOCK_ALLOC_ELEMENTS = VALID_BLOCK_MASK_SIZE / 32
-  };
-  // Directly accessed by Jit64.
-  std::unique_ptr<u32[]> m_valid_block;
-
   ValidBlockBitSet()
   {
     m_valid_block.reset(new u32[VALID_BLOCK_ALLOC_ELEMENTS]);
@@ -121,6 +110,19 @@ public:
   void Clear(u32 bit) { m_valid_block[bit / 32] &= ~(1u << (bit % 32)); }
   void ClearAll() { memset(m_valid_block.get(), 0, sizeof(u32) * VALID_BLOCK_ALLOC_ELEMENTS); }
   bool Test(u32 bit) { return (m_valid_block[bit / 32] & (1u << (bit % 32))) != 0; }
+
+private:
+  enum
+  {
+    // ValidBlockBitSet covers the whole 32-bit address-space in 32-byte
+    // chunks.
+    // FIXME: Maybe we can get away with less? There isn't any actual
+    // RAM in most of this space.
+    VALID_BLOCK_MASK_SIZE = (1ULL << 32) / 32,
+    // The number of elements in the allocated array. Each u32 contains 32 bits.
+    VALID_BLOCK_ALLOC_ELEMENTS = VALID_BLOCK_MASK_SIZE / 32
+  };
+  std::unique_ptr<u32[]> m_valid_block;
 };
 
 class JitBaseBlockCache
@@ -162,8 +164,6 @@ public:
   void InvalidateICache(u32 address, u32 length, bool forced);
   void ErasePhysicalRange(u32 address, u32 length);
 
-  u32* GetBlockBitSet() const;
-
 protected:
   virtual void DestroyBlock(JitBlock& block);
 
@@ -184,7 +184,7 @@ private:
 
   // links_to hold all exit points of all valid blocks in a reverse way.
   // It is used to query all blocks which links to an address.
-  std::multimap<u32, JitBlock*> links_to;  // destination_PC -> number
+  std::unordered_map<u32, std::unordered_set<JitBlock*>> links_to;  // destination_PC -> number
 
   // Map indexed by the physical address of the entry point.
   // This is used to query the block based on the current PC in a slow way.
@@ -194,7 +194,7 @@ private:
   // This is used for invalidation of memory regions. The range is grouped
   // in macro blocks of each 0x100 bytes.
   static constexpr u32 BLOCK_RANGE_MAP_ELEMENTS = 0x100;
-  std::map<u32, std::set<JitBlock*>> block_range_map;
+  std::map<u32, std::unordered_set<JitBlock*>> block_range_map;
 
   // This bitsets shows which cachelines overlap with any blocks.
   // It is used to provide a fast way to query if no icache invalidation is needed.

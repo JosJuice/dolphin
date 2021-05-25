@@ -6,7 +6,7 @@
 
 #include "InputCommon/ControllerEmu/ControlGroup/ControlGroup.h"
 #include "InputCommon/ControllerEmu/StickGate.h"
-#include "InputCommon/ControllerInterface/Device.h"
+#include "InputCommon/ControllerInterface/CoreDevice.h"
 
 namespace ControllerEmu
 {
@@ -18,10 +18,10 @@ public:
   AnalogStick(const char* name, std::unique_ptr<StickGate>&& stick_gate);
   AnalogStick(const char* name, const char* ui_name, std::unique_ptr<StickGate>&& stick_gate);
 
-  ReshapeData GetReshapableState(bool adjusted) final override;
+  ReshapeData GetReshapableState(bool adjusted) const final override;
   ControlState GetGateRadiusAtAngle(double ang) const override;
 
-  StateData GetState();
+  StateData GetState() const;
 
 private:
   std::unique_ptr<StickGate> m_stick_gate;

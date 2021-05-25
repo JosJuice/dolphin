@@ -13,14 +13,21 @@
 #include "Core/HW/Memmap.h"
 #include "Core/IOS/Network/MACUtils.h"
 
-namespace IOS::HLE::Device
+namespace IOS::HLE
 {
-NetNCDManage::NetNCDManage(Kernel& ios, const std::string& device_name) : Device(ios, device_name)
+NetNCDManageDevice::NetNCDManageDevice(Kernel& ios, const std::string& device_name)
+    : Device(ios, device_name)
 {
   config.ReadConfig(ios.GetFS().get());
 }
 
-IPCCommandResult NetNCDManage::IOCtlV(const IOCtlVRequest& request)
+void NetNCDManageDevice::DoState(PointerWrap& p)
+{
+  Device::DoState(p);
+  p.Do(m_ipc_fd);
+}
+
+std::optional<IPCReply> NetNCDManageDevice::IOCtlV(const IOCtlVRequest& request)
 {
   s32 return_value = IPC_SUCCESS;
   u32 common_result = 0;
@@ -29,11 +36,51 @@ IPCCommandResult NetNCDManage::IOCtlV(const IOCtlVRequest& request)
   switch (request.request)
   {
   case IOCTLV_NCD_LOCKWIRELESSDRIVER:
+    if (!request.HasNumberOfValidVectors(0, 1))
+      return IPCReply(IPC_EINVAL);
+
+    if (request.io_vectors[0].size < 2 * sizeof(u32))
+      return IPCReply(IPC_EINVAL);
+
+    if (m_ipc_fd != 0)
+    {
+      // It is an error to lock the driver again when it is already locked.
+      common_result = IPC_EINVAL;
+    }
+    else
+    {
+      // NCD writes the internal address of the request's file descriptor.
+      // We will just write the value of the file descriptor.
+      // The value will be positive so this will work fine.
+      m_ipc_fd = request.fd;
+      Memory::Write_U32(request.fd, request.io_vectors[0].address + 4);
+    }
     break;
 
   case IOCTLV_NCD_UNLOCKWIRELESSDRIVER:
-    // Memory::Read_U32(request.in_vectors.at(0).address);
+  {
+    if (!request.HasNumberOfValidVectors(1, 1))
+      return IPCReply(IPC_EINVAL);
+
+    if (request.in_vectors[0].size < sizeof(u32))
+      return IPCReply(IPC_EINVAL);
+
+    if (request.io_vectors[0].size < sizeof(u32))
+      return IPCReply(IPC_EINVAL);
+
+    const u32 request_handle = Memory::Read_U32(request.in_vectors[0].address);
+    if (m_ipc_fd == request_handle)
+    {
+      m_ipc_fd = 0;
+      common_result = 0;
+    }
+    else
+    {
+      common_result = -3;
+    }
+
     break;
+  }
 
   case IOCTLV_NCD_GETCONFIG:
     INFO_LOG_FMT(IOS_NET, "NET_NCD_MANAGE: IOCTLV_NCD_GETCONFIG");
@@ -83,6 +130,6 @@ IPCCommandResult NetNCDManage::IOCtlV(const IOCtlVRequest& request)
   {
     Memory::Write_U32(common_result, request.io_vectors.at(common_vector).address + 4);
   }
-  return GetDefaultReply(return_value);
+  return IPCReply(return_value);
 }
-}  // namespace IOS::HLE::Device
+}  // namespace IOS::HLE

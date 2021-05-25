@@ -13,13 +13,12 @@
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
 #include "Common/Swap.h"
-#include "Core/Analytics.h"
 #include "Core/Core.h"
+#include "Core/DolphinAnalytics.h"
 #include "Core/HW/WiimoteCommon/WiimoteHid.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Attachments.h"
-#include "InputCommon/ControllerEmu/ControlGroup/ModifySettingsButton.h"
 
 namespace WiimoteEmu
 {

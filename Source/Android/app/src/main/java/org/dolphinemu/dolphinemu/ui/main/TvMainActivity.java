@@ -2,7 +2,9 @@ package org.dolphinemu.dolphinemu.ui.main;
 
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.util.TypedValue;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -14,6 +16,7 @@ import androidx.leanback.widget.ArrayObjectAdapter;
 import androidx.leanback.widget.HeaderItem;
 import androidx.leanback.widget.ListRow;
 import androidx.leanback.widget.ListRowPresenter;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import org.dolphinemu.dolphinemu.R;
 import org.dolphinemu.dolphinemu.activities.EmulationActivity;
@@ -35,15 +38,16 @@ import org.dolphinemu.dolphinemu.viewholders.TvGameViewHolder;
 import java.util.ArrayList;
 import java.util.Collection;
 
-public final class TvMainActivity extends FragmentActivity implements MainView
+public final class TvMainActivity extends FragmentActivity
+        implements MainView, SwipeRefreshLayout.OnRefreshListener
 {
-  private static boolean sShouldRescanLibrary = true;
+  private final MainPresenter mPresenter = new MainPresenter(this, this);
 
-  private MainPresenter mPresenter = new MainPresenter(this, this);
+  private SwipeRefreshLayout mSwipeRefresh;
 
   private BrowseSupportFragment mBrowseFragment;
 
-  private ArrayList<ArrayObjectAdapter> mGameRows = new ArrayList<>();
+  private final ArrayList<ArrayObjectAdapter> mGameRows = new ArrayList<>();
 
   @Override
   protected void onCreate(Bundle savedInstanceState)
@@ -73,20 +77,11 @@ public final class TvMainActivity extends FragmentActivity implements MainView
       GameFileCacheService.startLoad(this);
     }
 
-    mPresenter.addDirIfNeeded(this);
+    mPresenter.onResume();
 
     // In case the user changed a setting that affects how games are displayed,
     // such as system language, cover downloading...
     refetchMetadata();
-
-    if (sShouldRescanLibrary)
-    {
-      GameFileCacheService.startRescan(this);
-    }
-    else
-    {
-      sShouldRescanLibrary = true;
-    }
   }
 
   @Override
@@ -107,15 +102,27 @@ public final class TvMainActivity extends FragmentActivity implements MainView
   protected void onStop()
   {
     super.onStop();
+
     if (isChangingConfigurations())
     {
-      skipRescanningLibrary();
+      MainPresenter.skipRescanningLibrary();
     }
+
     StartupHandler.setSessionTime(this);
   }
 
   void setupUI()
   {
+    mSwipeRefresh = findViewById(R.id.swipe_refresh);
+
+    TypedValue typedValue = new TypedValue();
+    getTheme().resolveAttribute(R.attr.colorPrimary, typedValue, true);
+    mSwipeRefresh.setColorSchemeColors(typedValue.data);
+
+    mSwipeRefresh.setOnRefreshListener(this);
+
+    setRefreshing(GameFileCacheService.isLoading());
+
     final FragmentManager fragmentManager = getSupportFragmentManager();
     mBrowseFragment = new BrowseSupportFragment();
     fragmentManager
@@ -167,23 +174,33 @@ public final class TvMainActivity extends FragmentActivity implements MainView
   @Override
   public void launchFileListActivity()
   {
-    FileBrowserHelper.openDirectoryPicker(this, FileBrowserHelper.GAME_EXTENSIONS);
+    if (DirectoryInitialization.preferOldFolderPicker(this))
+    {
+      FileBrowserHelper.openDirectoryPicker(this, FileBrowserHelper.GAME_EXTENSIONS);
+    }
+    else
+    {
+      Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+      startActivityForResult(intent, MainPresenter.REQUEST_DIRECTORY);
+    }
   }
 
   @Override
-  public void launchOpenFileActivity()
-  {
-    FileBrowserHelper.openFilePicker(this, MainPresenter.REQUEST_GAME_FILE, false,
-            FileBrowserHelper.GAME_EXTENSIONS);
-  }
-
-  @Override
-  public void launchInstallWAD()
+  public void launchOpenFileActivity(int requestCode)
   {
     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
     intent.addCategory(Intent.CATEGORY_OPENABLE);
     intent.setType("*/*");
-    startActivityForResult(intent, MainPresenter.REQUEST_WAD_FILE);
+    startActivityForResult(intent, requestCode);
+  }
+
+  /**
+   * Shows or hides the loading indicator.
+   */
+  @Override
+  public void setRefreshing(boolean refreshing)
+  {
+    mSwipeRefresh.setRefreshing(refreshing);
   }
 
   @Override
@@ -216,26 +233,47 @@ public final class TvMainActivity extends FragmentActivity implements MainView
     super.onActivityResult(requestCode, resultCode, result);
 
     // If the user picked a file, as opposed to just backing out.
-    if (resultCode == MainActivity.RESULT_OK)
+    if (resultCode == RESULT_OK)
     {
+      Uri uri = result.getData();
       switch (requestCode)
       {
         case MainPresenter.REQUEST_DIRECTORY:
-          mPresenter.onDirectorySelected(FileBrowserHelper.getSelectedPath(result));
+          if (DirectoryInitialization.preferOldFolderPicker(this))
+          {
+            mPresenter.onDirectorySelected(FileBrowserHelper.getSelectedPath(result));
+          }
+          else
+          {
+            mPresenter.onDirectorySelected(result);
+          }
           break;
 
         case MainPresenter.REQUEST_GAME_FILE:
-          EmulationActivity.launch(this, FileBrowserHelper.getSelectedFiles(result));
+          FileBrowserHelper.runAfterExtensionCheck(this, uri,
+                  FileBrowserHelper.GAME_LIKE_EXTENSIONS,
+                  () -> EmulationActivity.launch(this, result.getData().toString()));
           break;
 
         case MainPresenter.REQUEST_WAD_FILE:
-          mPresenter.installWAD(result.getData().toString());
+          FileBrowserHelper.runAfterExtensionCheck(this, uri, FileBrowserHelper.WAD_EXTENSION,
+                  () -> mPresenter.installWAD(result.getData().toString()));
+          break;
+
+        case MainPresenter.REQUEST_WII_SAVE_FILE:
+          FileBrowserHelper.runAfterExtensionCheck(this, uri, FileBrowserHelper.BIN_EXTENSION,
+                  () -> mPresenter.importWiiSave(result.getData().toString()));
+          break;
+
+        case MainPresenter.REQUEST_NAND_BIN_FILE:
+          FileBrowserHelper.runAfterExtensionCheck(this, uri, FileBrowserHelper.BIN_EXTENSION,
+                  () -> mPresenter.importNANDBin(result.getData().toString()));
           break;
       }
     }
     else
     {
-      skipRescanningLibrary();
+      MainPresenter.skipRescanningLibrary();
     }
   }
 
@@ -257,6 +295,16 @@ public final class TvMainActivity extends FragmentActivity implements MainView
         Toast.makeText(this, R.string.write_permission_needed, Toast.LENGTH_LONG).show();
       }
     }
+  }
+
+  /**
+   * Called when the user requests a refresh by swiping down.
+   */
+  @Override
+  public void onRefresh()
+  {
+    setRefreshing(true);
+    GameFileCacheService.startRescan(this);
   }
 
   private void buildRowsAdapter()
@@ -311,21 +359,9 @@ public final class TvMainActivity extends FragmentActivity implements MainView
   {
     ArrayObjectAdapter rowItems = new ArrayObjectAdapter(new SettingsRowPresenter());
 
-    rowItems.add(new TvSettingsItem(R.id.menu_settings_core,
-            R.drawable.ic_settings_core_tv,
-            R.string.grid_menu_config));
-
-    rowItems.add(new TvSettingsItem(R.id.menu_settings_graphics,
-            R.drawable.ic_settings_graphics_tv,
-            R.string.grid_menu_graphics_settings));
-
-    rowItems.add(new TvSettingsItem(R.id.menu_settings_gcpad,
-            R.drawable.ic_settings_gcpad,
-            R.string.grid_menu_gcpad_settings));
-
-    rowItems.add(new TvSettingsItem(R.id.menu_settings_wiimote,
-            R.drawable.ic_settings_wiimote,
-            R.string.grid_menu_wiimote_settings));
+    rowItems.add(new TvSettingsItem(R.id.menu_settings,
+            R.drawable.ic_settings_tv,
+            R.string.grid_menu_settings));
 
     rowItems.add(new TvSettingsItem(R.id.button_add_directory,
             R.drawable.ic_add_tv,
@@ -343,15 +379,18 @@ public final class TvMainActivity extends FragmentActivity implements MainView
             R.drawable.ic_folder,
             R.string.grid_menu_install_wad));
 
+    rowItems.add(new TvSettingsItem(R.id.menu_import_wii_save,
+            R.drawable.ic_folder,
+            R.string.grid_menu_import_wii_save));
+
+    rowItems.add(new TvSettingsItem(R.id.menu_import_nand_backup,
+            R.drawable.ic_folder,
+            R.string.grid_menu_import_nand_backup));
+
     // Create a header for this row.
     HeaderItem header =
             new HeaderItem(R.string.preferences_settings, getString(R.string.preferences_settings));
 
     return new ListRow(header, rowItems);
-  }
-
-  public static void skipRescanningLibrary()
-  {
-    sShouldRescanLibrary = false;
   }
 }

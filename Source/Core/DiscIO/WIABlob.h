@@ -13,7 +13,7 @@
 #include <utility>
 
 #include "Common/CommonTypes.h"
-#include "Common/File.h"
+#include "Common/IOFile.h"
 #include "Common/Swap.h"
 #include "DiscIO/Blob.h"
 #include "DiscIO/MultithreadedCompressor.h"
@@ -201,6 +201,8 @@ private:
     bool Decompress();
     bool HandleExceptions(const u8* data, size_t bytes_allocated, size_t bytes_written,
                           size_t* bytes_used, bool align);
+
+    size_t GetOutBytesWrittenExcludingExceptions() const;
 
     DecompressionBuffer m_in;
     DecompressionBuffer m_out;

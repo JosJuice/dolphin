@@ -1,7 +1,7 @@
 #include "SlippiGameFileLoader.h"
 
-#include "Common/File.h"
 #include "Common/FileUtil.h"
+#include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 #include "Core/Boot/Boot.h"
 #include "Core/ConfigManager.h"

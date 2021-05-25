@@ -123,6 +123,7 @@ LogManager::LogManager()
   m_log[COMMANDPROCESSOR] = {"CP", "Command Processor"};
   m_log[COMMON] = {"COMMON", "Common"};
   m_log[CONSOLE] = {"CONSOLE", "Dolphin Console"};
+  m_log[CONTROLLERINTERFACE] = {"CI", "Controller Interface"};
   m_log[CORE] = {"CORE", "Core"};
   m_log[DISCIO] = {"DIO", "Disc IO"};
   m_log[DSPHLE] = {"DSPHLE", "DSP HLE"};
@@ -156,7 +157,8 @@ LogManager::LogManager()
   m_log[MEMMAP] = {"MI", "Memory Interface & Memory Map"};
   m_log[NETPLAY] = {"NETPLAY", "Netplay"};
   m_log[OSHLE] = {"HLE", "OSHLE"};
-  m_log[OSREPORT] = {"OSREPORT", "OSReport"};
+  m_log[OSREPORT] = {"OSREPORT", "OSReport EXI"};
+  m_log[OSREPORT_HLE] = {"OSREPORT_HLE", "OSReport HLE"};
   m_log[PAD] = {"PAD", "Pad"};
   m_log[PIXELENGINE] = {"PE", "Pixel Engine"};
   m_log[PROCESSORINTERFACE] = {"PI", "Processor Interface"};

@@ -5,7 +5,6 @@
 #include "Core/PowerPC/Interpreter/Interpreter.h"
 
 #include <array>
-#include <cassert>
 #include <cinttypes>
 #include <string>
 
@@ -219,7 +218,11 @@ int Interpreter::SingleStepInner()
   }
 
   UpdatePC();
-  return PPCTables::GetOpInfo(m_prev_inst)->numCycles;
+
+  const GekkoOPInfo* opinfo = PPCTables::GetOpInfo(m_prev_inst);
+  PowerPC::UpdatePerformanceMonitor(opinfo->numCycles, (opinfo->flags & FL_LOADSTORE) != 0,
+                                    (opinfo->flags & FL_USE_FPU) != 0);
+  return opinfo->numCycles;
 }
 
 void Interpreter::SingleStep()

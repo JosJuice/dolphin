@@ -7,8 +7,8 @@
 #include <SlippiGame.h>
 
 #include "Common/CommonTypes.h"
-#include "Common/File.h"
 #include "Common/FileUtil.h"
+#include "Common/IOFile.h"
 #include "Core/Slippi/SlippiGameFileLoader.h"
 #include "Core/Slippi/SlippiMatchmaking.h"
 #include "Core/Slippi/SlippiNetplay.h"

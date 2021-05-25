@@ -25,9 +25,9 @@
 #include "Common/ChunkFile.h"
 #include "Common/CommonPaths.h"
 #include "Common/Config/Config.h"
-#include "Common/File.h"
 #include "Common/FileUtil.h"
 #include "Common/Hash.h"
+#include "Common/IOFile.h"
 #include "Common/MsgHandler.h"
 #include "Common/NandPaths.h"
 #include "Common/StringUtil.h"
@@ -62,6 +62,7 @@
 #include "Core/IOS/USB/Bluetooth/WiimoteDevice.h"
 #include "Core/NetPlayProto.h"
 #include "Core/State.h"
+#include "Core/WiiUtils.h"
 
 #include "DiscIO/Enums.h"
 
@@ -169,7 +170,7 @@ std::string GetInputDisplay()
 
   std::string input_display;
   {
-    std::lock_guard<std::mutex> guard(s_input_display_lock);
+    std::lock_guard guard(s_input_display_lock);
     for (int i = 0; i < 8; ++i)
     {
       if ((s_controllers & (1 << i)) != 0)
@@ -469,16 +470,13 @@ void ChangeWiiPads(bool instantly)
   if (instantly && (s_controllers >> 4) == controllers)
     return;
 
-  const auto ios = IOS::HLE::GetIOS();
-  const auto bt = ios ? std::static_pointer_cast<IOS::HLE::Device::BluetoothEmu>(
-                            ios->GetDeviceByName("/dev/usb/oh1/57e/305")) :
-                        nullptr;
+  const auto bt = WiiUtils::GetBluetoothEmuDevice();
   for (int i = 0; i < MAX_WIIMOTES; ++i)
   {
     const bool is_using_wiimote = IsUsingWiimote(i);
 
     WiimoteCommon::SetSource(i, is_using_wiimote ? WiimoteSource::Emulated : WiimoteSource::None);
-    if (!SConfig::GetInstance().m_bt_passthrough_enabled && bt)
+    if (bt != nullptr)
       bt->AccessWiimoteByIndex(i)->Activate(is_using_wiimote);
   }
 }
@@ -634,7 +632,7 @@ static void SetInputDisplayString(ControllerState padState, int controllerID)
     display_str += " DISCONNECTED";
   }
 
-  std::lock_guard<std::mutex> guard(s_input_display_lock);
+  std::lock_guard guard(s_input_display_lock);
   s_InputDisplay[controllerID] = std::move(display_str);
 }
 
@@ -765,7 +763,7 @@ static void SetWiiInputDisplayString(int remoteID, const DataReportBuilder& rpt,
     display_str += Analog2DToString(right_stick.x, right_stick.y, " R-ANA", 31);
   }
 
-  std::lock_guard<std::mutex> guard(s_input_display_lock);
+  std::lock_guard guard(s_input_display_lock);
   s_InputDisplay[controllerID] = std::move(display_str);
 }
 

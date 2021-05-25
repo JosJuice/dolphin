@@ -96,13 +96,15 @@ public:
 
   void GenerateConstantOverflow(bool overflow);
   void GenerateConstantOverflow(s64 val);
-  void GenerateOverflow();
+  void GenerateOverflow(Gen::CCFlags cond = Gen::CCFlags::CC_NO);
   void FinalizeCarryOverflow(bool oe, bool inv = false);
   void FinalizeCarry(Gen::CCFlags cond);
   void FinalizeCarry(bool ca);
   void ComputeRC(preg_t preg, bool needs_test = true, bool needs_sext = true);
 
   void AndWithMask(Gen::X64Reg reg, u32 mask);
+  void RotateLeft(int bits, Gen::X64Reg regOp, const Gen::OpArg& arg, u8 rotate);
+
   bool CheckMergedBranch(u32 crf) const;
   void DoMergedBranch();
   void DoMergedBranchCondition();

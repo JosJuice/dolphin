@@ -25,7 +25,7 @@ void SetupUnit::Init(u8 primitiveType)
 
 OutputVertexData* SetupUnit::GetVertex()
 {
-  memset(m_VertWritePointer, 0, sizeof(*m_VertWritePointer));
+  memset(reinterpret_cast<u8*>(m_VertWritePointer), 0, sizeof(*m_VertWritePointer));
   return m_VertWritePointer;
 }
 
@@ -167,4 +167,5 @@ void SetupUnit::SetupLineStrip()
 
 void SetupUnit::SetupPoint()
 {
+  Clipper::ProcessPoint(m_VertPointer[0]);
 }

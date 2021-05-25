@@ -50,8 +50,6 @@ public:
   bool AbortMD5();
   void SendChatMessage(const std::string& msg);
 
-  void SetNetSettings(const NetSettings& settings);
-
   bool DoAllPlayersHaveIPLDump() const;
   bool StartGame();
   bool RequestStartGame();
@@ -117,6 +115,7 @@ private:
     std::string title;
   };
 
+  bool SetupNetSettings();
   bool SyncSaveData();
   bool SyncCodes();
   void CheckSyncAndStartGame();
@@ -134,7 +133,7 @@ private:
 
   void OnTraversalStateChanged() override;
   void OnConnectReady(ENetAddress) override {}
-  void OnConnectFailed(u8) override {}
+  void OnConnectFailed(TraversalConnectFailedReason) override {}
   void UpdatePadMapping();
   void UpdateWiimoteMapping();
   std::vector<std::pair<std::string, std::string>> GetInterfaceListInternal() const;

@@ -28,6 +28,8 @@
 
 namespace ciface::DualShockUDPClient
 {
+constexpr std::string_view DUALSHOCKUDP_SOURCE_NAME = "DSUClient";
+
 namespace Settings
 {
 const Config::Info<std::string> SERVER_ADDRESS{
@@ -200,22 +202,10 @@ static bool IsSameController(const Proto::MessageType::PortInfo& a,
          std::tie(b.pad_id, b.pad_state, b.model, b.connection_type, b.pad_mac_address);
 }
 
-static sf::Socket::Status ReceiveWithTimeout(sf::UdpSocket& socket, void* data, std::size_t size,
-                                             std::size_t& received, sf::IpAddress& remoteAddress,
-                                             unsigned short& remotePort, sf::Time timeout)
-{
-  sf::SocketSelector selector;
-  selector.add(socket);
-  if (selector.wait(timeout))
-    return socket.receive(data, size, received, remoteAddress, remotePort);
-  else
-    return sf::Socket::NotReady;
-}
-
 static void HotplugThreadFunc()
 {
   Common::SetCurrentThreadName("DualShockUDPClient Hotplug Thread");
-  INFO_LOG_FMT(SERIALINTERFACE, "DualShockUDPClient hotplug thread started");
+  INFO_LOG_FMT(CONTROLLERINTERFACE, "DualShockUDPClient hotplug thread started");
 
   while (s_hotplug_thread_running.IsSet())
   {
@@ -235,41 +225,59 @@ static void HotplugThreadFunc()
         if (server.m_socket.send(&list_ports, sizeof list_ports, server.m_address, server.m_port) !=
             sf::Socket::Status::Done)
         {
-          ERROR_LOG_FMT(SERIALINTERFACE, "DualShockUDPClient HotplugThreadFunc send failed");
+          ERROR_LOG_FMT(CONTROLLERINTERFACE, "DualShockUDPClient HotplugThreadFunc send failed");
         }
       }
     }
 
+    sf::SocketSelector selector;
     for (auto& server : s_servers)
     {
-      // Receive controller port info
-      using namespace std::chrono;
-      using namespace std::chrono_literals;
+      selector.add(server.m_socket);
+    }
+
+    using namespace std::chrono;
+    using namespace std::chrono_literals;
+    const auto timeout = s_next_listports - SteadyClock::now();
+
+    // Selector's wait treats a timeout of zero as infinite timeout, which we don't want
+    const auto timeout_ms = std::max(duration_cast<milliseconds>(timeout), 1ms);
+    if (!selector.wait(sf::milliseconds(timeout_ms.count())))
+    {
+      continue;
+    }
+
+    for (auto& server : s_servers)
+    {
+      if (!selector.isReady(server.m_socket))
+      {
+        continue;
+      }
+
       Proto::Message<Proto::MessageType::FromServer> msg;
-      const auto timeout = s_next_listports - SteadyClock::now();
-      // ReceiveWithTimeout treats a timeout of zero as infinite timeout, which we don't want
-      const auto timeout_ms = std::max(duration_cast<milliseconds>(timeout), 1ms);
       std::size_t received_bytes;
       sf::IpAddress sender;
       u16 port;
-      if (ReceiveWithTimeout(server.m_socket, &msg, sizeof(msg), received_bytes, sender, port,
-                             sf::milliseconds(timeout_ms.count())) == sf::Socket::Status::Done)
+      if (server.m_socket.receive(&msg, sizeof(msg), received_bytes, sender, port) !=
+          sf::Socket::Status::Done)
       {
-        if (auto port_info = msg.CheckAndCastTo<Proto::MessageType::PortInfo>())
+        continue;
+      }
+
+      if (auto port_info = msg.CheckAndCastTo<Proto::MessageType::PortInfo>())
+      {
+        const bool port_changed =
+            !IsSameController(*port_info, server.m_port_info[port_info->pad_id]);
         {
-          const bool port_changed =
-              !IsSameController(*port_info, server.m_port_info[port_info->pad_id]);
-          {
-            std::lock_guard lock{server.m_port_info_mutex};
-            server.m_port_info[port_info->pad_id] = *port_info;
-          }
-          if (port_changed)
-            PopulateDevices();
+          std::lock_guard lock{server.m_port_info_mutex};
+          server.m_port_info[port_info->pad_id] = *port_info;
         }
+        if (port_changed)
+          PopulateDevices();
       }
     }
   }
-  INFO_LOG_FMT(SERIALINTERFACE, "DualShockUDPClient hotplug thread stopped");
+  INFO_LOG_FMT(CONTROLLERINTERFACE, "DualShockUDPClient hotplug thread stopped");
 }
 
 static void StartHotplugThread()
@@ -302,7 +310,7 @@ static void StopHotplugThread()
 
 static void Restart()
 {
-  INFO_LOG_FMT(SERIALINTERFACE, "DualShockUDPClient Restart");
+  INFO_LOG_FMT(CONTROLLERINTERFACE, "DualShockUDPClient Restart");
 
   StopHotplugThread();
 
@@ -317,7 +325,7 @@ static void Restart()
     }
   }
 
-  PopulateDevices();  // remove devices
+  PopulateDevices();  // Only removes devices
 
   if (s_servers_enabled && !s_servers.empty())
     StartHotplugThread();
@@ -379,18 +387,23 @@ void Init()
     Config::SetBase(Settings::SERVER_PORT, 0);
   }
 
+  // It would be much better to unbind from this callback on DeInit but it's not possible as of now
   Config::AddConfigChangedCallback(ConfigChanged);
+  ConfigChanged();  // Call it immediately to load settings
 }
 
 void PopulateDevices()
 {
-  INFO_LOG_FMT(SERIALINTERFACE, "DualShockUDPClient PopulateDevices");
+  INFO_LOG_FMT(CONTROLLERINTERFACE, "DualShockUDPClient PopulateDevices");
+
+  // s_servers has already been updated so we can't use it to know which devices we removed,
+  // also it's good to remove all of them before adding new ones so that their id will be set
+  // correctly if they have the same name
+  g_controller_interface.RemoveDevice(
+      [](const auto* dev) { return dev->GetSource() == DUALSHOCKUDP_SOURCE_NAME; });
 
   for (auto& server : s_servers)
   {
-    g_controller_interface.RemoveDevice(
-        [&server](const auto* dev) { return dev->GetName() == server.m_description; });
-
     std::lock_guard lock{server.m_port_info_mutex};
     for (size_t port_index = 0; port_index < server.m_port_info.size(); port_index++)
     {
@@ -478,7 +491,7 @@ std::string Device::GetName() const
 
 std::string Device::GetSource() const
 {
-  return "DSUClient";
+  return std::string(DUALSHOCKUDP_SOURCE_NAME);
 }
 
 void Device::UpdateInput()
@@ -497,7 +510,7 @@ void Device::UpdateInput()
     if (m_socket.send(&data_req, sizeof(data_req), m_server_address, m_server_port) !=
         sf::Socket::Status::Done)
     {
-      ERROR_LOG_FMT(SERIALINTERFACE, "DualShockUDPClient UpdateInput send failed");
+      ERROR_LOG_FMT(CONTROLLERINTERFACE, "DualShockUDPClient UpdateInput send failed");
     }
   }
 

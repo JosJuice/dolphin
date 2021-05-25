@@ -17,11 +17,12 @@
 
 #include "Common/Assert.h"
 #include "Common/ChunkFile.h"
+#include "Common/CommonPaths.h"
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
-#include "Common/File.h"
 #include "Common/FileSearch.h"
 #include "Common/FileUtil.h"
+#include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
 #include "Common/StringUtil.h"
@@ -32,6 +33,8 @@
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/EXI/EXI_DeviceIPL.h"
+#include "Core/HW/GCMemcard/GCMemcard.h"
+#include "Core/HW/GCMemcard/GCMemcardUtils.h"
 #include "Core/HW/Sram.h"
 #include "Core/NetPlayProto.h"
 
@@ -328,7 +331,7 @@ s32 GCMemcardDirectory::Read(u32 src_address, s32 length, u8* dest_address)
 
 s32 GCMemcardDirectory::Write(u32 dest_address, s32 length, const u8* src_address)
 {
-  std::unique_lock<std::mutex> l(m_write_mutex);
+  std::unique_lock l(m_write_mutex);
   if (length != 0x80)
     INFO_LOG_FMT(EXPANSIONINTERFACE, "Writing to {:#x}. Length: {:#x}", dest_address, length);
   s32 block = dest_address / Memcard::BLOCK_SIZE;
@@ -593,7 +596,7 @@ bool GCMemcardDirectory::SetUsedBlocks(int save_index)
 
 void GCMemcardDirectory::FlushToFile()
 {
-  std::unique_lock<std::mutex> l(m_write_mutex);
+  std::unique_lock l(m_write_mutex);
   int errors = 0;
   Memcard::DEntry invalid;
   for (Memcard::GCIFile& save : m_saves)
@@ -686,7 +689,7 @@ void GCMemcardDirectory::FlushToFile()
 
 void GCMemcardDirectory::DoState(PointerWrap& p)
 {
-  std::unique_lock<std::mutex> l(m_write_mutex);
+  std::unique_lock l(m_write_mutex);
   m_last_block = -1;
   m_last_block_address = nullptr;
   p.Do(m_save_directory);
@@ -716,7 +719,13 @@ void MigrateFromMemcardFile(const std::string& directory_name, int card_index)
     {
       for (u8 i = 0; i < Memcard::DIRLEN; i++)
       {
-        memcard->ExportGci(i, "", directory_name);
+        const auto savefile = memcard->ExportFile(i);
+        if (!savefile)
+          continue;
+
+        std::string filepath =
+            directory_name + DIR_SEP + Memcard::GenerateFilename(savefile->dir_entry) + ".gci";
+        Memcard::WriteSavefile(filepath, *savefile, Memcard::SavefileFormat::GCI);
       }
     }
   }

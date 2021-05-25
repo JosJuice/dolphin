@@ -211,9 +211,9 @@ public:
   virtual u32 AccessEFB(EFBAccessType type, u32 x, u32 y, u32 poke_data);
   virtual void PokeEFB(EFBAccessType type, const EfbPokeData* points, size_t num_points);
 
-  virtual u16 BBoxRead(int index) = 0;
-  virtual void BBoxWrite(int index, u16 value) = 0;
-  virtual void BBoxFlush() {}
+  u16 BBoxRead(int index);
+  void BBoxWrite(int index, u16 value);
+  void BBoxFlush();
 
   virtual void Flush() {}
   virtual void WaitForGPUIdle() {}
@@ -233,8 +233,8 @@ public:
   // Called when the configuration changes, and backend structures need to be updated.
   virtual void OnConfigChanged(u32 bits) {}
 
-  PEControl::PixelFormat GetPrevPixelFormat() const { return m_prev_efb_format; }
-  void StorePixelFormat(PEControl::PixelFormat new_format) { m_prev_efb_format = new_format; }
+  PixelFormat GetPrevPixelFormat() const { return m_prev_efb_format; }
+  void StorePixelFormat(PixelFormat new_format) { m_prev_efb_format = new_format; }
   bool EFBHasAlphaChannel() const;
   VideoCommon::PostProcessing* GetPostProcessor() const { return m_post_processor.get(); }
   // Final surface changing
@@ -302,6 +302,10 @@ protected:
   // Should be called with the ImGui lock held.
   void DrawImGui();
 
+  virtual u16 BBoxReadImpl(int index) = 0;
+  virtual void BBoxWriteImpl(int index, u16 value) = 0;
+  virtual void BBoxFlushImpl() {}
+
   AbstractFramebuffer* m_current_framebuffer = nullptr;
   const AbstractPipeline* m_current_pipeline = nullptr;
 
@@ -344,7 +348,7 @@ protected:
 private:
   std::tuple<int, int> CalculateOutputDimensions(int width, int height) const;
 
-  PEControl::PixelFormat m_prev_efb_format = PEControl::INVALID_FMT;
+  PixelFormat m_prev_efb_format = PixelFormat::INVALID_FMT;
   unsigned int m_efb_scale = 1;
 
   // These will be set on the first call to SetWindowSize.
@@ -412,7 +416,7 @@ private:
 
   // Fills the frame dump staging texture with the current XFB texture.
   void DumpCurrentFrame(const AbstractTexture* src_texture,
-                        const MathUtil::Rectangle<int>& src_rect, u64 ticks);
+                        const MathUtil::Rectangle<int>& src_rect, u64 ticks, int frame_number);
 
   // Asynchronously encodes the specified pointer of frame data to the frame dump.
   void DumpFrameData(const u8* data, int w, int h, int stride);

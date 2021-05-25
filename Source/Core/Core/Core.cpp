@@ -36,13 +36,14 @@
 #include "Common/Timer.h"
 #include "Common/Version.h"
 
-#include "Core/Analytics.h"
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/ConfigManager.h"
 #include "Core/CoreTiming.h"
 #include "Core/DSPEmulator.h"
+#include "Core/DolphinAnalytics.h"
 #include "Core/FifoPlayer/FifoPlayer.h"
+#include "Core/FreeLookManager.h"
 #include "Core/HLE/HLE.h"
 #include "Core/HW/CPU.h"
 #include "Core/HW/DSP.h"
@@ -83,7 +84,6 @@
 #include "VideoCommon/OnScreenDisplay.h"
 #include "VideoCommon/RenderBase.h"
 #include "VideoCommon/VideoBackendBase.h"
-#include "VideoCommon/VideoConfig.h"
 
 #ifdef ANDROID
 #include "jni/AndroidCommon/IDCache.h"
@@ -103,11 +103,12 @@ static bool s_hardware_initialized = false;
 static bool s_is_started = false;
 static Common::Flag s_is_booting;
 static std::thread s_emu_thread;
-static StateChangedCallbackFunc s_on_state_changed_callback;
+static std::vector<StateChangedCallbackFunc> s_on_state_changed_callbacks;
 
 static std::thread s_cpu_thread;
 static bool s_request_refresh_info = false;
 static bool s_is_throttler_temp_disabled = false;
+static std::atomic<double> s_last_actual_emulation_speed{1.0};
 static bool s_frame_step = false;
 static std::atomic<bool> s_stop_frame_step;
 
@@ -136,6 +137,11 @@ bool GetIsThrottlerTempDisabled()
 void SetIsThrottlerTempDisabled(bool disable)
 {
   s_is_throttler_temp_disabled = disable;
+}
+
+double GetActualEmulationSpeed()
+{
+  return s_last_actual_emulation_speed;
 }
 
 void FrameUpdateOnCPUThread()
@@ -231,8 +237,6 @@ bool Init(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
   // Drain any left over jobs
   HostDispatchJobs();
 
-  Core::UpdateWantDeterminism(/*initial*/ true);
-
   INFO_LOG_FMT(BOOT, "Starting core = {} mode", SConfig::GetInstance().bWii ? "Wii" : "GameCube");
   INFO_LOG_FMT(BOOT, "CPU Thread separate = {}", SConfig::GetInstance().bCPUThread ? "Yes" : "No");
 
@@ -269,9 +273,9 @@ void Stop()  // - Hammertime!
 
   s_is_stopping = true;
 
-  // Notify state changed callback
-  if (s_on_state_changed_callback)
-    s_on_state_changed_callback(State::Stopping);
+  s_timer.Stop();
+
+  CallOnStateChangedCallbacks(State::Stopping);
 
   // Dump left over jobs
   HostDispatchJobs();
@@ -293,6 +297,8 @@ void Stop()  // - Hammertime!
 
     g_video_backend->Video_ExitLoop();
   }
+
+  s_last_actual_emulation_speed = 1.0;
 }
 
 void DeclareAsCPUThread()
@@ -424,16 +430,14 @@ static void FifoPlayerThread(const std::optional<std::string>& savestate_path,
 static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi)
 {
   const SConfig& core_parameter = SConfig::GetInstance();
-  if (s_on_state_changed_callback)
-    s_on_state_changed_callback(State::Starting);
+  CallOnStateChangedCallbacks(State::Starting);
   Common::ScopeGuard flag_guard{[] {
     s_is_booting.Clear();
     s_is_started = false;
     s_is_stopping = false;
     s_wants_determinism = false;
 
-    if (s_on_state_changed_callback)
-      s_on_state_changed_callback(State::Uninitialized);
+    CallOnStateChangedCallbacks(State::Uninitialized);
 
     INFO_LOG_FMT(CONSOLE, "Stop\t\t---- Shutdown complete ----");
   }};
@@ -485,6 +489,15 @@ static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi
       NetPlay::SetupWiimotes();
   }
 
+  if (init_controllers)
+  {
+    FreeLook::Initialize();
+  }
+  else
+  {
+    FreeLook::LoadInputConfig();
+  }
+
   Common::ScopeGuard controller_guard{[init_controllers, init_wiimotes] {
     if (!init_controllers)
       return;
@@ -495,6 +508,8 @@ static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi
       Wiimote::Shutdown();
     }
 
+    FreeLook::Shutdown();
+
     ResetRumble();
 
     Keyboard::Shutdown();
@@ -504,6 +519,9 @@ static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi
 
   Movie::Init(*boot);
   Common::ScopeGuard movie_guard{&Movie::Shutdown};
+
+  AudioCommon::InitSoundStream();
+  Common::ScopeGuard audio_guard{&AudioCommon::ShutdownSoundStream};
 
   HW::Init();
 
@@ -523,6 +541,7 @@ static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi
 
     PatchEngine::Shutdown();
     HLE::Clear();
+    PowerPC::debug_interface.Clear();
   }};
 
   VideoBackendBase::PopulateBackendInfo();
@@ -554,8 +573,7 @@ static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi
   // it's now ok to initialize any custom textures
   HiresTexture::Update();
 
-  AudioCommon::InitSoundStream();
-  Common::ScopeGuard audio_guard{&AudioCommon::ShutdownSoundStream};
+  AudioCommon::PostInitSoundStream();
 
   // The hardware is initialized.
   s_hardware_initialized = true;
@@ -578,7 +596,7 @@ static void EmuThread(std::unique_ptr<BootParameters> boot, WindowSystemInfo wsi
     return;
 
   // Initialise Wii filesystem contents.
-  // This is done here after Boot and not in HW to ensure that we operate
+  // This is done here after Boot and not in BootManager to ensure that we operate
   // with the correct title context since save copying requires title directories to exist.
   Common::ScopeGuard wiifs_guard{&Core::CleanUpWiiFileSystemContents};
   if (SConfig::GetInstance().bWii)
@@ -650,18 +668,27 @@ void SetState(State state)
     CPU::EnableStepping(true);  // Break
     Wiimote::Pause();
     ResetRumble();
+    s_timer.Update();
     break;
   case State::Running:
     CPU::EnableStepping(false);
     Wiimote::Resume();
+    if (!s_timer.IsRunning())
+    {
+      s_timer.Start();
+    }
+    else
+    {
+      // Add time difference from the last pause
+      s_timer.AddTimeDifference();
+    }
     break;
   default:
     PanicAlertFmt("Invalid state");
     break;
   }
 
-  if (s_on_state_changed_callback)
-    s_on_state_changed_callback(GetState());
+  CallOnStateChangedCallbacks(GetState());
 }
 
 State GetState()
@@ -720,26 +747,14 @@ static std::string GenerateScreenshotName()
 
 void SaveScreenShot()
 {
-  const bool bPaused = GetState() == State::Paused;
-
-  SetState(State::Paused);
-
-  g_renderer->SaveScreenshot(GenerateScreenshotName());
-
-  if (!bPaused)
-    SetState(State::Running);
+  Core::RunAsCPUThread([] { g_renderer->SaveScreenshot(GenerateScreenshotName()); });
 }
 
 void SaveScreenShot(std::string_view name)
 {
-  const bool bPaused = GetState() == State::Paused;
-
-  SetState(State::Paused);
-
-  g_renderer->SaveScreenshot(fmt::format("{}{}.png", GenerateScreenshotFolderPath(), name));
-
-  if (!bPaused)
-    SetState(State::Running);
+  Core::RunAsCPUThread([&name] {
+    g_renderer->SaveScreenshot(fmt::format("{}{}.png", GenerateScreenshotFolderPath(), name));
+  });
 }
 
 void RequestRefreshInfo()
@@ -750,7 +765,7 @@ void RequestRefreshInfo()
 static bool PauseAndLock(bool do_lock, bool unpause_on_unlock)
 {
   // WARNING: PauseAndLock is not fully threadsafe so is only valid on the Host Thread
-  if (!IsRunning())
+  if (!IsRunningAndStarted())
     return true;
 
   bool was_unpaused = true;
@@ -844,13 +859,13 @@ void RunOnCPUThread(std::function<void()> function, bool wait_for_completion)
 void VideoThrottle()
 {
   // Update info per second
-  u32 ElapseTime = (u32)s_timer.GetTimeDifference();
+  u32 ElapseTime = (u32)s_timer.GetTimeElapsed();
   if ((ElapseTime >= 1000 && s_drawn_video.load() > 0) || s_request_refresh_info)
   {
-    UpdateTitle();
+    s_timer.Start();
 
-    // Reset counter
-    s_timer.Update();
+    UpdateTitle(ElapseTime);
+
     s_drawn_frame.store(0);
     s_drawn_video.store(0);
   }
@@ -862,8 +877,10 @@ void VideoThrottle()
 
 // Called from Renderer::Swap (GPU thread) when a new (non-duplicate)
 // frame is presented to the host screen
-void Callback_FramePresented()
+void Callback_FramePresented(double actual_emulation_speed)
 {
+  s_last_actual_emulation_speed = actual_emulation_speed;
+
   s_drawn_frame++;
   s_stop_frame_step.store(true);
 }
@@ -884,15 +901,13 @@ void Callback_NewField()
     {
       s_frame_step = false;
       CPU::Break();
-      if (s_on_state_changed_callback)
-        s_on_state_changed_callback(Core::GetState());
+      CallOnStateChangedCallbacks(Core::GetState());
     }
   }
 }
 
-void UpdateTitle()
+void UpdateTitle(u32 ElapseTime)
 {
-  u32 ElapseTime = (u32)s_timer.GetTimeDifference();
   s_request_refresh_info = false;
   SConfig& _CoreParameter = SConfig::GetInstance();
 
@@ -982,9 +997,38 @@ void Shutdown()
   HostDispatchJobs();
 }
 
-void SetOnStateChangedCallback(StateChangedCallbackFunc callback)
+int AddOnStateChangedCallback(StateChangedCallbackFunc callback)
 {
-  s_on_state_changed_callback = std::move(callback);
+  for (size_t i = 0; i < s_on_state_changed_callbacks.size(); ++i)
+  {
+    if (!s_on_state_changed_callbacks[i])
+    {
+      s_on_state_changed_callbacks[i] = std::move(callback);
+      return int(i);
+    }
+  }
+  s_on_state_changed_callbacks.emplace_back(std::move(callback));
+  return int(s_on_state_changed_callbacks.size()) - 1;
+}
+
+bool RemoveOnStateChangedCallback(int* handle)
+{
+  if (handle && *handle >= 0 && s_on_state_changed_callbacks.size() > *handle)
+  {
+    s_on_state_changed_callbacks[*handle] = StateChangedCallbackFunc();
+    *handle = -1;
+    return true;
+  }
+  return false;
+}
+
+void CallOnStateChangedCallbacks(Core::State state)
+{
+  for (const StateChangedCallbackFunc& on_state_changed_callback : s_on_state_changed_callbacks)
+  {
+    if (on_state_changed_callback)
+      on_state_changed_callback(state);
+  }
 }
 
 void UpdateWantDeterminism(bool initial)
@@ -1017,7 +1061,7 @@ void QueueHostJob(std::function<void()> job, bool run_during_stop)
 
   bool send_message = false;
   {
-    std::lock_guard<std::mutex> guard(s_host_jobs_lock);
+    std::lock_guard guard(s_host_jobs_lock);
     send_message = s_host_jobs_queue.empty();
     s_host_jobs_queue.emplace(HostJob{std::move(job), run_during_stop});
   }
@@ -1031,7 +1075,7 @@ void HostDispatchJobs()
   // WARNING: This should only run on the Host Thread.
   // NOTE: This function is potentially re-entrant. If a job calls
   //   Core::Stop for instance then we'll enter this a second time.
-  std::unique_lock<std::mutex> guard(s_host_jobs_lock);
+  std::unique_lock guard(s_host_jobs_lock);
   while (!s_host_jobs_queue.empty())
   {
     HostJob job = std::move(s_host_jobs_queue.front());

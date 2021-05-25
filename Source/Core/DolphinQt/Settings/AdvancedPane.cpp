@@ -28,8 +28,8 @@
 static const std::map<PowerPC::CPUCore, const char*> CPU_CORE_NAMES = {
     {PowerPC::CPUCore::Interpreter, QT_TR_NOOP("Interpreter (slowest)")},
     {PowerPC::CPUCore::CachedInterpreter, QT_TR_NOOP("Cached Interpreter (slower)")},
-    {PowerPC::CPUCore::JIT64, QT_TR_NOOP("JIT Recompiler (recommended)")},
-    {PowerPC::CPUCore::JITARM64, QT_TR_NOOP("JIT Arm64 (experimental)")},
+    {PowerPC::CPUCore::JIT64, QT_TR_NOOP("JIT Recompiler for x86-64 (recommended)")},
+    {PowerPC::CPUCore::JITARM64, QT_TR_NOOP("JIT Recompiler for ARM64 (recommended)")},
 };
 
 AdvancedPane::AdvancedPane(QWidget* parent) : QWidget(parent)
@@ -221,10 +221,10 @@ void AdvancedPane::ConnectLayout()
   });
 
   QDateTime initial_date_time;
-  initial_date_time.setTime_t(SConfig::GetInstance().m_customRTCValue);
+  initial_date_time.setSecsSinceEpoch(SConfig::GetInstance().m_customRTCValue);
   m_custom_rtc_datetime->setDateTime(initial_date_time);
   connect(m_custom_rtc_datetime, &QDateTimeEdit::dateTimeChanged, [this](QDateTime date_time) {
-    SConfig::GetInstance().m_customRTCValue = date_time.toTime_t();
+    SConfig::GetInstance().m_customRTCValue = static_cast<u32>(date_time.toSecsSinceEpoch());
     Update();
   });
 }

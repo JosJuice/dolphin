@@ -2,6 +2,9 @@ package org.dolphinemu.dolphinemu.features.settings.ui;
 
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.os.Build;
+import android.provider.DocumentsContract;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -173,6 +176,13 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     mView.onSettingChanged();
   }
 
+  public void notifyAllSettingsChanged()
+  {
+    notifyItemRangeChanged(0, getItemCount());
+
+    mView.onSettingChanged();
+  }
+
   public void onBooleanClick(CheckBoxSetting item, int position, boolean checked)
   {
     item.setChecked(getSettings(), checked);
@@ -191,7 +201,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     AlertDialog.Builder builder = new AlertDialog.Builder(mView.getActivity(),
             R.style.DolphinDialogBase);
 
-    builder.setTitle(item.getNameId());
+    builder.setTitle(item.getName());
     builder.setSingleChoiceItems(item.getChoicesId(), value, this);
 
     mDialog = builder.show();
@@ -205,7 +215,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     AlertDialog.Builder builder = new AlertDialog.Builder(mView.getActivity(),
             R.style.DolphinDialogBase);
 
-    builder.setTitle(item.getNameId());
+    builder.setTitle(item.getName());
     builder.setSingleChoiceItems(item.getChoicesId(), item.getSelectValueIndex(getSettings()),
             this);
 
@@ -223,7 +233,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     AlertDialog.Builder builder = new AlertDialog.Builder(mView.getActivity(),
             R.style.DolphinDialogBase);
 
-    builder.setTitle(item.getNameId());
+    builder.setTitle(item.getName());
     builder.setSingleChoiceItems(item.getChoicesId(), value, this);
 
     mDialog = builder.show();
@@ -241,7 +251,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     LayoutInflater inflater = LayoutInflater.from(mView.getActivity());
     View view = inflater.inflate(R.layout.dialog_seekbar, null);
 
-    builder.setTitle(item.getNameId());
+    builder.setTitle(item.getName());
     builder.setView(view);
     builder.setPositiveButton(R.string.ok, this);
     mDialog = builder.show();
@@ -276,7 +286,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     dialog.setMessage(String.format(mContext.getString(
             item instanceof RumbleBindingSetting ?
                     R.string.input_rumble_description : R.string.input_binding_description),
-            mContext.getString(item.getNameId())));
+            item.getName()));
     dialog.setButton(AlertDialog.BUTTON_NEGATIVE, mContext.getString(R.string.cancel), this);
     dialog.setButton(AlertDialog.BUTTON_NEUTRAL, mContext.getString(R.string.clear),
             (dialogInterface, i) -> item.clearValue(getSettings()));
@@ -289,33 +299,31 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     dialog.show();
   }
 
-  public void onFilePickerDirectoryClick(SettingsItem item)
+  public void onFilePickerDirectoryClick(SettingsItem item, int position)
   {
     mClickedItem = item;
+    mClickedPosition = position;
 
     FileBrowserHelper.openDirectoryPicker(mView.getActivity(), FileBrowserHelper.GAME_EXTENSIONS);
   }
 
-  public void onFilePickerFileClick(SettingsItem item)
+  public void onFilePickerFileClick(SettingsItem item, int position)
   {
     mClickedItem = item;
+    mClickedPosition = position;
     FilePicker filePicker = (FilePicker) item;
 
-    HashSet<String> extensions;
-    switch (filePicker.getRequestType())
+    Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+    intent.addCategory(Intent.CATEGORY_OPENABLE);
+    intent.setType("*/*");
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
     {
-      case MainPresenter.REQUEST_SD_FILE:
-        extensions = FileBrowserHelper.RAW_EXTENSION;
-        break;
-      case MainPresenter.REQUEST_GAME_FILE:
-        extensions = FileBrowserHelper.GAME_EXTENSIONS;
-        break;
-      default:
-        throw new InvalidParameterException("Unhandled request code");
+      intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI,
+              filePicker.getSelectedValue(mView.getSettings()));
     }
 
-    FileBrowserHelper.openFilePicker(mView.getActivity(), filePicker.getRequestType(), false,
-            extensions);
+    mView.getActivity().startActivityForResult(intent, filePicker.getRequestType());
   }
 
   public void onFilePickerConfirmation(String selectedFile)
@@ -323,25 +331,14 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     FilePicker filePicker = (FilePicker) mClickedItem;
 
     if (!filePicker.getSelectedValue(mView.getSettings()).equals(selectedFile))
+    {
+      notifyItemChanged(mClickedPosition);
       mView.onSettingChanged();
+    }
 
     filePicker.setSelectedValue(mView.getSettings(), selectedFile);
 
     mClickedItem = null;
-  }
-
-  public void setAllLogTypes(boolean value)
-  {
-    Settings settings = mView.getSettings();
-
-    for (Map.Entry<String, String> entry : SettingsFragmentPresenter.LOG_TYPE_NAMES.entrySet())
-    {
-      new AdHocBooleanSetting(Settings.FILE_LOGGER, Settings.SECTION_LOGGER_LOGS, entry.getKey(),
-              false).setBoolean(settings, value);
-    }
-
-    notifyItemRangeChanged(0, getItemCount());
-    mView.onSettingChanged();
   }
 
   public static void clearLog()

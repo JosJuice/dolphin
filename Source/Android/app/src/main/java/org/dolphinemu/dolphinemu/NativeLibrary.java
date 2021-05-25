@@ -375,6 +375,8 @@ public final class NativeLibrary
    */
   public static native void ReportStartToAnalytics();
 
+  public static native void GenerateNewStatisticsId();
+
   /**
    * Begins emulation.
    */
@@ -441,8 +443,6 @@ public final class NativeLibrary
   public static native LinkedHashMap<String, String> GetLogTypeNames();
 
   public static native void ReloadLoggerConfig();
-
-  public static native boolean InstallWAD(String file);
 
   public static native boolean ConvertDiscImage(String inPath, String outPath, int platform,
           int format, int blockSize, int compression, int compressionLevel, boolean scrub,

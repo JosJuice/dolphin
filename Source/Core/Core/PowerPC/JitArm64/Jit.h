@@ -43,7 +43,9 @@ public:
   void Jit(u32) override;
 
   const char* GetName() const override { return "JITARM64"; }
+
   // OPCODES
+  using Instruction = void (JitArm64::*)(UGeckoInstruction);
   void FallBackToInterpreter(UGeckoInstruction inst);
   void DoNothing(UGeckoInstruction inst);
   void HLEFunction(u32 hook_index);
@@ -138,6 +140,8 @@ public:
   void fcmpX(UGeckoInstruction inst);
   void frspx(UGeckoInstruction inst);
   void fctiwzx(UGeckoInstruction inst);
+  void fresx(UGeckoInstruction inst);
+  void frsqrtex(UGeckoInstruction inst);
 
   // Paired
   void ps_maddXX(UGeckoInstruction inst);
@@ -145,12 +149,27 @@ public:
   void ps_mulsX(UGeckoInstruction inst);
   void ps_sel(UGeckoInstruction inst);
   void ps_sumX(UGeckoInstruction inst);
+  void ps_res(UGeckoInstruction inst);
+  void ps_rsqrte(UGeckoInstruction inst);
 
   // Loadstore paired
   void psq_l(UGeckoInstruction inst);
   void psq_st(UGeckoInstruction inst);
 
-private:
+  void ConvertDoubleToSingleLower(size_t guest_reg, Arm64Gen::ARM64Reg dest_reg,
+                                  Arm64Gen::ARM64Reg src_reg);
+  void ConvertDoubleToSinglePair(size_t guest_reg, Arm64Gen::ARM64Reg dest_reg,
+                                 Arm64Gen::ARM64Reg src_reg);
+  void ConvertSingleToDoubleLower(size_t guest_reg, Arm64Gen::ARM64Reg dest_reg,
+                                  Arm64Gen::ARM64Reg src_reg,
+                                  Arm64Gen::ARM64Reg scratch_reg = Arm64Gen::ARM64Reg::INVALID_REG);
+  void ConvertSingleToDoublePair(size_t guest_reg, Arm64Gen::ARM64Reg dest_reg,
+                                 Arm64Gen::ARM64Reg src_reg,
+                                 Arm64Gen::ARM64Reg scratch_reg = Arm64Gen::ARM64Reg::INVALID_REG);
+
+  bool IsFPRStoreSafe(size_t guest_reg) const;
+
+protected:
   struct SlowmemHandler
   {
     Arm64Gen::ARM64Reg dest_reg;
@@ -172,7 +191,6 @@ private:
     const u8* slowmem_code;
   };
 
-  static void InitializeInstructionTables();
   void CompileInstruction(PPCAnalyst::CodeOp& op);
 
   bool HandleFunctionHooking(u32 address);
@@ -183,13 +201,17 @@ private:
     nearcode = GetWritableCodePtr();
     SetCodePtrUnsafe(farcode.GetWritableCodePtr());
     AlignCode16();
+    m_in_farcode = true;
   }
 
   void SwitchToNearCode()
   {
     farcode.SetCodePtrUnsafe(GetWritableCodePtr());
     SetCodePtrUnsafe(nearcode);
+    m_in_farcode = false;
   }
+
+  bool IsInFarCode() const { return m_in_farcode; }
 
   // Dump a memory range of code
   void DumpCode(const u8* start, const u8* end);
@@ -214,6 +236,12 @@ private:
   // AsmRoutines
   void GenerateAsm();
   void GenerateCommonAsm();
+  void GenerateFres();
+  void GenerateFrsqrte();
+  void GenerateConvertDoubleToSingle();
+  void GenerateConvertSingleToDouble();
+  void GenerateFPRF(bool single);
+  void GenerateQuantizedLoadStores();
 
   // Profiling
   void BeginTimeProfile(JitBlock* b);
@@ -231,7 +259,8 @@ private:
 
   void ComputeRC0(Arm64Gen::ARM64Reg reg);
   void ComputeRC0(u64 imm);
-  void ComputeCarry(bool Carry);
+  void ComputeCarry(Arm64Gen::ARM64Reg reg);  // reg must contain 0 or 1
+  void ComputeCarry(bool carry);
   void ComputeCarry();
   void FlushCarry();
 
@@ -239,6 +268,10 @@ private:
                void (ARM64XEmitter::*op)(Arm64Gen::ARM64Reg, Arm64Gen::ARM64Reg, u64,
                                          Arm64Gen::ARM64Reg),
                bool Rc = false);
+
+  void SetFPRFIfNeeded(bool single, Arm64Gen::ARM64Reg reg);
+  void Force25BitPrecision(Arm64Gen::ARM64Reg output, Arm64Gen::ARM64Reg input,
+                           Arm64Gen::ARM64Reg temp);
 
   // <Fastmem fault location, slowmem handler location>
   std::map<const u8*, FastmemArea> m_fault_to_handler;
@@ -252,6 +285,7 @@ private:
 
   Arm64Gen::ARM64CodeBlock farcode;
   u8* nearcode;  // Backed up when we switch to far code.
+  bool m_in_farcode = false;
 
   bool m_enable_blr_optimization;
   bool m_cleanup_after_stackfault = false;

@@ -17,9 +17,9 @@
 
 #include "Common/ChunkFile.h"
 #include "Common/CommonTypes.h"
-#include "Common/File.h"
 #include "Common/FileSearch.h"
 #include "Common/FileUtil.h"
+#include "Common/IOFile.h"
 
 #include "DiscIO/DirectoryBlob.h"
 
@@ -27,7 +27,7 @@
 
 namespace UICommon
 {
-static constexpr u32 CACHE_REVISION = 19;  // Last changed in PR 9135
+static constexpr u32 CACHE_REVISION = 20;  // Last changed in PR 9461
 
 std::vector<std::string> FindAllGamePaths(const std::vector<std::string>& directories_to_scan,
                                           bool recursive_scan)

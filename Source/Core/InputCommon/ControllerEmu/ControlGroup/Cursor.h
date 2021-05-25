@@ -8,7 +8,7 @@
 #include <string>
 
 #include "InputCommon/ControllerEmu/StickGate.h"
-#include "InputCommon/ControllerInterface/Device.h"
+#include "InputCommon/ControllerInterface/CoreDevice.h"
 
 namespace ControllerEmu
 {
@@ -25,9 +25,10 @@ public:
 
   Cursor(std::string name, std::string ui_name);
 
-  ReshapeData GetReshapableState(bool adjusted) final override;
+  ReshapeData GetReshapableState(bool adjusted) const final override;
   ControlState GetGateRadiusAtAngle(double ang) const override;
 
+  // Modifies the state
   StateData GetState(bool adjusted);
 
   // Yaw movement in radians.

@@ -31,12 +31,12 @@
 #include "Common/Version.h"
 #include "Common/WindowSystemInfo.h"
 
-#include "Core/Analytics.h"
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/ConfigLoaders/GameConfigLoader.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
+#include "Core/DolphinAnalytics.h"
 #include "Core/HW/DVD/DVDInterface.h"
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteReal/WiimoteReal.h"
@@ -45,7 +45,6 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/Profiler.h"
 #include "Core/State.h"
-#include "Core/WiiUtils.h"
 
 #include "DiscIO/Blob.h"
 #include "DiscIO/Enums.h"
@@ -94,12 +93,21 @@ void UpdatePointer()
   env->CallStaticVoidMethod(IDCache::GetNativeLibraryClass(), IDCache::GetUpdateTouchPointer());
 }
 
+std::vector<std::string> Host_GetPreferredLocales()
+{
+  // We would like to call ConfigurationCompat.getLocales here, but this function gets called
+  // during dynamic initialization, and it seems like that makes us unable to obtain a JNIEnv.
+  return {};
+}
+
 void Host_NotifyMapLoaded()
 {
 }
+
 void Host_RefreshDSPDebuggerWindow()
 {
 }
+
 bool Host_UIBlocksControllerState()
 {
   return false;
@@ -213,9 +221,7 @@ static std::string GetAnalyticValue(const std::string& key)
   return stdvalue;
 }
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_UnPauseEmulation(JNIEnv*,
                                                                                      jclass)
@@ -485,6 +491,12 @@ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_ReportStartT
   DolphinAnalytics::Instance().ReportDolphinStart(GetAnalyticValue("DEVICE_TYPE"));
 }
 
+JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_GenerateNewStatisticsId(JNIEnv*,
+                                                                                            jclass)
+{
+  DolphinAnalytics::Instance().GenerateNewIdentity();
+}
+
 // Returns the scale factor for imgui rendering.
 // Based on the scaledDensity of the device's display metrics.
 static float GetRenderSurfaceScale(JNIEnv* env)
@@ -606,14 +618,6 @@ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_ReloadLogger
   Common::Log::LogManager::Init();
 }
 
-JNIEXPORT jboolean JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_InstallWAD(JNIEnv* env,
-                                                                                   jclass,
-                                                                                   jstring jFile)
-{
-  const std::string path = GetJString(env, jFile);
-  return static_cast<jboolean>(WiiUtils::InstallWAD(path));
-}
-
 JNIEXPORT jboolean JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_ConvertDiscImage(
     JNIEnv* env, jclass, jstring jInPath, jstring jOutPath, jint jPlatform, jint jFormat,
     jint jBlockSize, jint jCompression, jint jCompressionLevel, jboolean jScrub, jobject jCallback)
@@ -722,7 +726,4 @@ Java_org_dolphinemu_dolphinemu_NativeLibrary_GetCurrentTitleDescriptionUnchecked
 
   return ToJString(env, description);
 }
-
-#ifdef __cplusplus
 }
-#endif

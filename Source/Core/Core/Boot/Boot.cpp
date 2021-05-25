@@ -28,8 +28,8 @@ namespace fs = std::filesystem;
 #include "Common/CommonPaths.h"
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
-#include "Common/File.h"
 #include "Common/FileUtil.h"
+#include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
 #include "Common/StringUtil.h"
@@ -157,6 +157,15 @@ BootParameters::GenerateFromFile(std::vector<std::string> paths,
   std::string path = paths.front();
   if (paths.size() == 1)
     paths.clear();
+
+#ifdef ANDROID
+  if (extension.empty() && IsPathAndroidContent(path))
+  {
+    const std::string display_name = GetAndroidContentDisplayName(path);
+    SplitPath(display_name, nullptr, nullptr, &extension);
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+  }
+#endif
 
   static const std::unordered_set<std::string> disc_image_extensions = {
       {".gcm", ".iso", ".tgc", ".wbfs", ".ciso", ".gcz", ".wia", ".rvz", ".dol", ".elf"}};
@@ -427,11 +436,7 @@ bool CBoot::BootUp(std::unique_ptr<BootParameters> boot)
       if (!EmulatedBS2(config.bWii, *volume))
         return false;
 
-      // Try to load the symbol map if there is one, and then scan it for
-      // and eventually replace code
-      if (LoadMapFromFilename())
-        HLE::PatchFunctions();
-
+      SConfig::OnNewTitleLoad();
       return true;
     }
 
@@ -473,9 +478,11 @@ bool CBoot::BootUp(std::unique_ptr<BootParameters> boot)
         SetupGCMemory();
       }
 
+      SConfig::OnNewTitleLoad();
+
       PC = executable.reader->GetEntryPoint();
 
-      if (executable.reader->LoadSymbols() || LoadMapFromFilename())
+      if (executable.reader->LoadSymbols())
       {
         UpdateDebugger_MapLoaded();
         HLE::PatchFunctions();
@@ -486,13 +493,21 @@ bool CBoot::BootUp(std::unique_ptr<BootParameters> boot)
     bool operator()(const DiscIO::VolumeWAD& wad) const
     {
       SetDefaultDisc();
-      return Boot_WiiWAD(wad);
+      if (!Boot_WiiWAD(wad))
+        return false;
+
+      SConfig::OnNewTitleLoad();
+      return true;
     }
 
     bool operator()(const BootParameters::NANDTitle& nand_title) const
     {
       SetDefaultDisc();
-      return BootNANDTitle(nand_title.id);
+      if (!BootNANDTitle(nand_title.id))
+        return false;
+
+      SConfig::OnNewTitleLoad();
+      return true;
     }
 
     bool operator()(const BootParameters::IPL& ipl) const
@@ -516,9 +531,7 @@ bool CBoot::BootUp(std::unique_ptr<BootParameters> boot)
         SetDisc(DiscIO::CreateDisc(ipl.disc->path), ipl.disc->auto_disc_change_paths);
       }
 
-      if (LoadMapFromFilename())
-        HLE::PatchFunctions();
-
+      SConfig::OnNewTitleLoad();
       return true;
     }
 
@@ -535,8 +548,6 @@ bool CBoot::BootUp(std::unique_ptr<BootParameters> boot)
   if (!std::visit(BootTitle(), boot->parameters))
     return false;
 
-  PatchEngine::LoadPatches();
-  HLE::PatchFixedFunctions();
   return true;
 }
 

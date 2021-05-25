@@ -10,6 +10,8 @@
 #include <cstring>
 #include <signal.h>
 #include <string>
+#include <vector>
+
 #ifndef _WIN32
 #include <unistd.h>
 #else
@@ -17,11 +19,11 @@
 #endif
 
 #include "Common/StringUtil.h"
-#include "Core/Analytics.h"
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
+#include "Core/DolphinAnalytics.h"
 #include "Core/Host.h"
 
 #include "UICommon/CommandLineParse.h"
@@ -49,9 +51,15 @@ static void signal_handler(int)
   s_platform->RequestShutdown();
 }
 
+std::vector<std::string> Host_GetPreferredLocales()
+{
+  return {};
+}
+
 void Host_NotifyMapLoaded()
 {
 }
+
 void Host_RefreshDSPDebuggerWindow()
 {
 }
@@ -230,7 +238,7 @@ int main(int argc, char* argv[])
     return 1;
   }
 
-  Core::SetOnStateChangedCallback([](Core::State state) {
+  Core::AddOnStateChangedCallback([](Core::State state) {
     if (state == Core::State::Uninitialized)
       s_platform->Stop();
   });

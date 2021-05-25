@@ -79,12 +79,26 @@ since the Binary directory contains a working Dolphin distribution.
 
 ### macOS Build Steps:
 
+A binary supporting a single architecture can be built using the following steps: 
+
 1. `mkdir build`
 2. `cd build`
 3. `cmake ..`
 4. `make`
 
 An application bundle will be created in `./Binaries`.
+
+A script is also provided to build universal binaries supporting both x64 and ARM in the same
+application bundle using the following steps:
+
+1. `mkdir build`
+2. `cd build`
+3. `python ../BuildMacOSUniversalBinary.py`
+4. Universal binaries will be available in the `universal` folder
+
+Doing this is more complex as it requires installation of library dependencies for both x64 and ARM (or universal library
+equivalents) and may require specifying additional arguments to point to relevant library locations. 
+Execute BuildMacOSUniversalBinary.py --help for more details.  
 
 ### Linux Global Build Steps:
 
@@ -173,8 +187,8 @@ is intended for debugging purposes only.
 * `GC/dsp_coef.bin`: DSP dumps
 * `GC/dsp_rom.bin`: DSP dumps
 * `Wii/clientca.pem`: Wii network certificate
-* `Wii/clientcacakey.pem`: Wii network certificate
-* `Wii/rootca.pem`: Wii network certificate
+* `Wii/clientcakey.pem`: Wii network certificate key
+* `Wii/rootca.pem`: Wii network certificate issuer / CA
 
 The DSP dumps included with Dolphin have been written from scratch and do not
 contain any copyrighted material. They should work for most purposes, however

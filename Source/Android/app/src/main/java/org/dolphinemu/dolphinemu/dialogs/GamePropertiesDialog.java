@@ -50,11 +50,16 @@ public class GamePropertiesDialog extends DialogFragment
   @Override
   public Dialog onCreateDialog(Bundle savedInstanceState)
   {
-    String path = requireArguments().getString(ARG_PATH);
-    String gameId = requireArguments().getString(ARG_GAMEID);
-    int revision = requireArguments().getInt(ARG_REVISION);
-    int platform = requireArguments().getInt(ARG_PLATFORM);
-    boolean shouldAllowConversion = requireArguments().getBoolean(ARG_SHOULD_ALLOW_CONVERSION);
+    final String path = requireArguments().getString(ARG_PATH);
+    final String gameId = requireArguments().getString(ARG_GAMEID);
+    final int revision = requireArguments().getInt(ARG_REVISION);
+    final int platform = requireArguments().getInt(ARG_PLATFORM);
+    final boolean shouldAllowConversion =
+            requireArguments().getBoolean(ARG_SHOULD_ALLOW_CONVERSION);
+
+    final boolean isDisc = platform == Platform.GAMECUBE.toInt() ||
+            platform == Platform.WII.toInt();
+    final boolean isWii = platform != Platform.GAMECUBE.toInt();
 
     AlertDialogItemsBuilder itemsBuilder = new AlertDialogItemsBuilder(requireContext());
 
@@ -68,30 +73,21 @@ public class GamePropertiesDialog extends DialogFragment
               ConvertActivity.launch(getContext(), path));
     }
 
-    itemsBuilder.add(R.string.properties_set_default_iso, (dialog, i) ->
+    if (isDisc)
     {
-      try (Settings settings = new Settings())
+      itemsBuilder.add(R.string.properties_set_default_iso, (dialog, i) ->
       {
-        settings.loadSettings(null);
-        StringSetting.MAIN_DEFAULT_ISO.setString(settings, path);
-        settings.saveSettings(null, getContext());
-      }
-    });
-
-    itemsBuilder.add(R.string.properties_core_settings, (dialog, i) ->
-            SettingsActivity.launch(getContext(), MenuTag.CONFIG, gameId, revision));
-
-    itemsBuilder.add(R.string.properties_gfx_settings, (dialog, i) ->
-            SettingsActivity.launch(getContext(), MenuTag.GRAPHICS, gameId, revision));
-
-    itemsBuilder.add(R.string.properties_gc_controller, (dialog, i) ->
-            SettingsActivity.launch(getContext(), MenuTag.GCPAD_TYPE, gameId, revision));
-
-    if (platform != Platform.GAMECUBE.toInt())
-    {
-      itemsBuilder.add(R.string.properties_wii_controller, (dialog, i) ->
-              SettingsActivity.launch(getActivity(), MenuTag.WIIMOTE, gameId, revision));
+        try (Settings settings = new Settings())
+        {
+          settings.loadSettings();
+          StringSetting.MAIN_DEFAULT_ISO.setString(settings, path);
+          settings.saveSettings(null, getContext());
+        }
+      });
     }
+
+    itemsBuilder.add(R.string.properties_edit_game_settings, (dialog, i) ->
+            SettingsActivity.launch(getContext(), MenuTag.SETTINGS, gameId, revision, isWii));
 
     itemsBuilder.add(R.string.properties_clear_game_settings, (dialog, i) ->
             clearGameSettings(gameId));

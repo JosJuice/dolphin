@@ -41,6 +41,7 @@
 #include "Core/Config/NetplaySettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
+#include "Core/FreeLookManager.h"
 #include "Core/HW/DVD/DVDInterface.h"
 #include "Core/HW/GCKeyboard.h"
 #include "Core/HW/GCPad.h"
@@ -56,12 +57,14 @@
 #include "Core/NetPlayProto.h"
 #include "Core/NetPlayServer.h"
 #include "Core/State.h"
+#include "Core/WiiUtils.h"
 
 #include "DiscIO/NANDImporter.h"
 
 #include "DolphinQt/AboutDialog.h"
 #include "DolphinQt/CheatsManager.h"
 #include "DolphinQt/Config/ControllersWindow.h"
+#include "DolphinQt/Config/FreeLookWindow.h"
 #include "DolphinQt/Config/Graphics/GraphicsWindow.h"
 #include "DolphinQt/Config/LogConfigWidget.h"
 #include "DolphinQt/Config/LogWidget.h"
@@ -117,7 +120,7 @@
 #include "VideoCommon/NetPlayChatUI.h"
 #include "VideoCommon/VideoConfig.h"
 
-#if defined(HAVE_XRANDR) && HAVE_XRANDR
+#ifdef HAVE_XRANDR
 #include "UICommon/X11Utils.h"
 // This #define within X11/X.h conflicts with our WiimoteSource enum.
 #undef None
@@ -152,6 +155,8 @@ static WindowSystemType GetWindowSystemType()
     return WindowSystemType::X11;
   else if (platform_name == QStringLiteral("wayland"))
     return WindowSystemType::Wayland;
+  else if (platform_name == QStringLiteral("haiku"))
+    return WindowSystemType::Haiku;
 
   ModalMessageBox::critical(
       nullptr, QStringLiteral("Error"),
@@ -165,7 +170,7 @@ static WindowSystemInfo GetWindowSystemInfo(QWindow* window)
   wsi.type = GetWindowSystemType();
 
   // Our Win32 Qt external doesn't have the private API.
-#if defined(WIN32) || defined(__APPLE__)
+#if defined(WIN32) || defined(__APPLE__) || defined(__HAIKU__)
   wsi.render_window = window ? reinterpret_cast<void*>(window->winId()) : nullptr;
   wsi.render_surface = wsi.render_window;
 #else
@@ -302,6 +307,7 @@ void MainWindow::InitControllers()
   Pad::Initialize();
   Keyboard::Initialize();
   Wiimote::Initialize(Wiimote::InitializeMode::DO_NOT_WAIT_FOR_WIIMOTES);
+  FreeLook::Initialize();
   m_hotkey_scheduler = new HotkeyScheduler();
   m_hotkey_scheduler->Start();
 
@@ -315,6 +321,9 @@ void MainWindow::InitControllers()
 
   Keyboard::LoadConfig();
   Keyboard::GetConfig()->SaveConfig();
+
+  FreeLook::LoadInputConfig();
+  FreeLook::GetInputConfig()->SaveConfig();
 }
 
 void MainWindow::ShutdownControllers()
@@ -325,6 +334,7 @@ void MainWindow::ShutdownControllers()
   Keyboard::Shutdown();
   Wiimote::Shutdown();
   HotkeyManagerEmu::Shutdown();
+  FreeLook::Shutdown();
   g_controller_interface.Shutdown();
 
   m_hotkey_scheduler->deleteLater();
@@ -410,11 +420,12 @@ void MainWindow::CreateComponents()
   };
   const auto request_view_in_memory = [this](u32 addr) { m_memory_widget->SetAddress(addr); };
   const auto request_view_in_code = [this](u32 addr) {
-    m_code_widget->SetAddress(addr, CodeViewWidget::SetAddressUpdate::WithUpdate);
+    m_code_widget->SetAddress(addr, CodeViewWidget::SetAddressUpdate::WithDetailedUpdate);
   };
 
   connect(m_watch_widget, &WatchWidget::RequestMemoryBreakpoint, request_memory_breakpoint);
   connect(m_register_widget, &RegisterWidget::RequestMemoryBreakpoint, request_memory_breakpoint);
+  connect(m_register_widget, &RegisterWidget::RequestWatch, request_watch);
   connect(m_register_widget, &RegisterWidget::RequestViewInMemory, request_view_in_memory);
   connect(m_register_widget, &RegisterWidget::RequestViewInCode, request_view_in_code);
   connect(m_thread_widget, &ThreadWidget::RequestBreakpoint, request_breakpoint);
@@ -430,8 +441,9 @@ void MainWindow::CreateComponents()
   connect(m_memory_widget, &MemoryWidget::BreakpointsChanged, m_breakpoint_widget,
           &BreakpointWidget::Update);
   connect(m_memory_widget, &MemoryWidget::ShowCode, m_code_widget, [this](u32 address) {
-    m_code_widget->SetAddress(address, CodeViewWidget::SetAddressUpdate::WithUpdate);
+    m_code_widget->SetAddress(address, CodeViewWidget::SetAddressUpdate::WithDetailedUpdate);
   });
+  connect(m_memory_widget, &MemoryWidget::RequestWatch, request_watch);
 
   connect(m_breakpoint_widget, &BreakpointWidget::BreakpointsChanged, m_code_widget,
           &CodeWidget::Update);
@@ -439,7 +451,7 @@ void MainWindow::CreateComponents()
           &MemoryWidget::Update);
   connect(m_breakpoint_widget, &BreakpointWidget::SelectedBreakpoint, [this](u32 address) {
     if (Core::GetState() == Core::State::Paused)
-      m_code_widget->SetAddress(address, CodeViewWidget::SetAddressUpdate::WithUpdate);
+      m_code_widget->SetAddress(address, CodeViewWidget::SetAddressUpdate::WithDetailedUpdate);
   });
 }
 
@@ -479,6 +491,7 @@ void MainWindow::ConnectMenuBar()
   connect(m_menu_bar, &MenuBar::ConfigureAudio, this, &MainWindow::ShowAudioWindow);
   connect(m_menu_bar, &MenuBar::ConfigureControllers, this, &MainWindow::ShowControllersWindow);
   connect(m_menu_bar, &MenuBar::ConfigureHotkeys, this, &MainWindow::ShowHotkeyDialog);
+  connect(m_menu_bar, &MenuBar::ConfigureFreelook, this, &MainWindow::ShowFreeLookWindow);
 
   // Tools
   connect(m_menu_bar, &MenuBar::ShowMemcardManager, this, &MainWindow::ShowMemcardManager);
@@ -645,7 +658,7 @@ void MainWindow::ConnectStack()
 
   layout->addWidget(m_game_list);
   layout->addWidget(m_search_bar);
-  layout->setMargin(0);
+  layout->setContentsMargins(0, 0, 0, 0);
 
   connect(m_search_bar, &SearchBar::Search, m_game_list, &GameList::SetSearchTerm);
 
@@ -1102,6 +1115,19 @@ void MainWindow::ShowControllersWindow()
   m_controllers_window->activateWindow();
 }
 
+void MainWindow::ShowFreeLookWindow()
+{
+  if (!m_freelook_window)
+  {
+    m_freelook_window = new FreeLookWindow(this);
+    InstallHotkeyFilter(m_freelook_window);
+  }
+
+  m_freelook_window->show();
+  m_freelook_window->raise();
+  m_freelook_window->activateWindow();
+}
+
 void MainWindow::ShowSettingsWindow()
 {
   if (!m_settings_window)
@@ -1150,7 +1176,7 @@ void MainWindow::ShowGraphicsWindow()
 {
   if (!m_graphics_window)
   {
-#if defined(HAVE_XRANDR) && HAVE_XRANDR
+#ifdef HAVE_XRANDR
     if (GetWindowSystemType() == WindowSystemType::X11)
     {
       m_xrr_config = std::make_unique<X11Utils::XRRConfiguration>(
@@ -1189,7 +1215,7 @@ void MainWindow::ShowFIFOPlayer()
 {
   if (!m_fifo_window)
   {
-    m_fifo_window = new FIFOPlayerWindow(this);
+    m_fifo_window = new FIFOPlayerWindow;
     connect(m_fifo_window, &FIFOPlayerWindow::LoadFIFORequested, this,
             [this](const QString& path) { StartGame(path, ScanForSecondDisc::No); });
   }
@@ -1441,7 +1467,7 @@ void MainWindow::UpdateScreenSaverInhibition()
 
   m_is_screensaver_inhibited = inhibit;
 
-#if defined(HAVE_XRANDR) && HAVE_XRANDR
+#ifdef HAVE_X11
   if (GetWindowSystemType() == WindowSystemType::X11)
     UICommon::InhibitScreenSaver(winId(), inhibit);
 #else
@@ -1651,19 +1677,12 @@ void MainWindow::OnStopRecording()
 
 void MainWindow::OnExportRecording()
 {
-  bool was_paused = Core::GetState() == Core::State::Paused;
-
-  if (!was_paused)
-    Core::SetState(Core::State::Paused);
-
-  QString dtm_file = QFileDialog::getSaveFileName(this, tr("Select the Recording File"), QString(),
-                                                  tr("Dolphin TAS Movies (*.dtm)"));
-
-  if (!dtm_file.isEmpty())
-    Movie::SaveRecording(dtm_file.toStdString());
-
-  if (!was_paused)
-    Core::SetState(Core::State::Running);
+  Core::RunAsCPUThread([this] {
+    QString dtm_file = QFileDialog::getSaveFileName(this, tr("Select the Recording File"),
+                                                    QString(), tr("Dolphin TAS Movies (*.dtm)"));
+    if (!dtm_file.isEmpty())
+      Movie::SaveRecording(dtm_file.toStdString());
+  });
 }
 
 void MainWindow::OnActivateChat()
@@ -1706,12 +1725,8 @@ void MainWindow::ShowTASInput()
 
 void MainWindow::OnConnectWiiRemote(int id)
 {
-  const auto ios = IOS::HLE::GetIOS();
-  if (!ios || SConfig::GetInstance().m_bt_passthrough_enabled)
-    return;
   Core::RunAsCPUThread([&] {
-    if (const auto bt = std::static_pointer_cast<IOS::HLE::Device::BluetoothEmu>(
-            ios->GetDeviceByName("/dev/usb/oh1/57e/305")))
+    if (const auto bt = WiiUtils::GetBluetoothEmuDevice())
     {
       const auto wm = bt->AccessWiimoteByIndex(id);
       wm->Activate(!wm->IsConnected());

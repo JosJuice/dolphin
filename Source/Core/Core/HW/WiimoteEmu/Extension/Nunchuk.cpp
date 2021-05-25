@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <cstring>
 
+#include "Common/Assert.h"
 #include "Common/BitUtils.h"
 #include "Common/Common.h"
 #include "Common/CommonTypes.h"
@@ -170,7 +170,7 @@ ControllerEmu::ControlGroup* Nunchuk::GetGroup(NunchukGroup group)
   case NunchukGroup::IMUAccelerometer:
     return m_imu_accelerometer;
   default:
-    assert(false);
+    ASSERT(false);
     return nullptr;
   }
 }
@@ -200,8 +200,8 @@ void Nunchuk::LoadDefaults(const ControllerInterface& ciface)
   m_buttons->SetControlExpression(0, "LCONTROL");  // C
   m_buttons->SetControlExpression(1, "LSHIFT");    // Z
 #elif __APPLE__
-  m_buttons->SetControlExpression(0, "Left Control");  // C
-  m_buttons->SetControlExpression(1, "Left Shift");    // Z
+  m_buttons->SetControlExpression(0, "`Left Control`");  // C
+  m_buttons->SetControlExpression(1, "`Left Shift`");    // Z
 #else
   m_buttons->SetControlExpression(0, "Control_L");  // C
   m_buttons->SetControlExpression(1, "Shift_L");    // Z

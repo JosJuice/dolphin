@@ -5,12 +5,12 @@
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 
 #include <algorithm>
-#include <cassert>
 #include <memory>
 #include <string_view>
 
 #include <fmt/format.h>
 
+#include "Common/Assert.h"
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
@@ -338,7 +338,7 @@ ControllerEmu::ControlGroup* Wiimote::GetWiimoteGroup(WiimoteGroup group) const
   case WiimoteGroup::IMUPoint:
     return m_imu_ir;
   default:
-    assert(false);
+    ASSERT(false);
     return nullptr;
   }
 }
@@ -428,7 +428,7 @@ void Wiimote::Update()
 
   // Hotkey / settings modifier
   // Data is later accessed in IsSideways and IsUpright
-  m_hotkeys->GetState();
+  m_hotkeys->UpdateState();
 
   // Update our motion simulations.
   StepDynamics();
@@ -611,14 +611,14 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 // Buttons
 #if defined HAVE_X11 && HAVE_X11
   // A
-  m_buttons->SetControlExpression(0, "Click 1");
+  m_buttons->SetControlExpression(0, "`Click 1`");
   // B
-  m_buttons->SetControlExpression(1, "Click 3");
+  m_buttons->SetControlExpression(1, "`Click 3`");
 #else
   // A
-  m_buttons->SetControlExpression(0, "Click 0");
+  m_buttons->SetControlExpression(0, "`Click 0`");
   // B
-  m_buttons->SetControlExpression(1, "Click 1");
+  m_buttons->SetControlExpression(1, "`Click 1`");
 #endif
   m_buttons->SetControlExpression(2, "`1`");  // 1
   m_buttons->SetControlExpression(3, "`2`");  // 2
@@ -628,18 +628,19 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 #ifdef _WIN32
   m_buttons->SetControlExpression(6, "RETURN");  // Home
 #else
-  m_buttons->SetControlExpression(6, "Return");    // Home
+  // Home
+  m_buttons->SetControlExpression(6, "Return");
 #endif
 
   // Shake
   for (int i = 0; i < 3; ++i)
-    m_shake->SetControlExpression(i, "Click 2");
+    m_shake->SetControlExpression(i, "`Click 2`");
 
   // Pointing (IR)
-  m_ir->SetControlExpression(0, "Cursor Y-");
-  m_ir->SetControlExpression(1, "Cursor Y+");
-  m_ir->SetControlExpression(2, "Cursor X-");
-  m_ir->SetControlExpression(3, "Cursor X+");
+  m_ir->SetControlExpression(0, "`Cursor Y-`");
+  m_ir->SetControlExpression(1, "`Cursor Y+`");
+  m_ir->SetControlExpression(2, "`Cursor X-`");
+  m_ir->SetControlExpression(3, "`Cursor X+`");
 
 // DPad
 #ifdef _WIN32
@@ -648,10 +649,10 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
   m_dpad->SetControlExpression(2, "LEFT");   // Left
   m_dpad->SetControlExpression(3, "RIGHT");  // Right
 #elif __APPLE__
-  m_dpad->SetControlExpression(0, "Up Arrow");     // Up
-  m_dpad->SetControlExpression(1, "Down Arrow");   // Down
-  m_dpad->SetControlExpression(2, "Left Arrow");   // Left
-  m_dpad->SetControlExpression(3, "Right Arrow");  // Right
+  m_dpad->SetControlExpression(0, "`Up Arrow`");     // Up
+  m_dpad->SetControlExpression(1, "`Down Arrow`");   // Down
+  m_dpad->SetControlExpression(2, "`Left Arrow`");   // Left
+  m_dpad->SetControlExpression(3, "`Right Arrow`");  // Right
 #else
   m_dpad->SetControlExpression(0, "Up");     // Up
   m_dpad->SetControlExpression(1, "Down");   // Down
@@ -660,18 +661,18 @@ void Wiimote::LoadDefaults(const ControllerInterface& ciface)
 #endif
 
   // Motion Source
-  m_imu_accelerometer->SetControlExpression(0, "Accel Up");
-  m_imu_accelerometer->SetControlExpression(1, "Accel Down");
-  m_imu_accelerometer->SetControlExpression(2, "Accel Left");
-  m_imu_accelerometer->SetControlExpression(3, "Accel Right");
-  m_imu_accelerometer->SetControlExpression(4, "Accel Forward");
-  m_imu_accelerometer->SetControlExpression(5, "Accel Backward");
-  m_imu_gyroscope->SetControlExpression(0, "Gyro Pitch Up");
-  m_imu_gyroscope->SetControlExpression(1, "Gyro Pitch Down");
-  m_imu_gyroscope->SetControlExpression(2, "Gyro Roll Left");
-  m_imu_gyroscope->SetControlExpression(3, "Gyro Roll Right");
-  m_imu_gyroscope->SetControlExpression(4, "Gyro Yaw Left");
-  m_imu_gyroscope->SetControlExpression(5, "Gyro Yaw Right");
+  m_imu_accelerometer->SetControlExpression(0, "`Accel Up`");
+  m_imu_accelerometer->SetControlExpression(1, "`Accel Down`");
+  m_imu_accelerometer->SetControlExpression(2, "`Accel Left`");
+  m_imu_accelerometer->SetControlExpression(3, "`Accel Right`");
+  m_imu_accelerometer->SetControlExpression(4, "`Accel Forward`");
+  m_imu_accelerometer->SetControlExpression(5, "`Accel Backward`");
+  m_imu_gyroscope->SetControlExpression(0, "`Gyro Pitch Up`");
+  m_imu_gyroscope->SetControlExpression(1, "`Gyro Pitch Down`");
+  m_imu_gyroscope->SetControlExpression(2, "`Gyro Roll Left`");
+  m_imu_gyroscope->SetControlExpression(3, "`Gyro Roll Right`");
+  m_imu_gyroscope->SetControlExpression(4, "`Gyro Yaw Left`");
+  m_imu_gyroscope->SetControlExpression(5, "`Gyro Yaw Right`");
 
   // Enable Nunchuk:
   constexpr ExtensionNumber DEFAULT_EXT = ExtensionNumber::NUNCHUK;
@@ -699,15 +700,15 @@ EncryptionKey Wiimote::GetExtensionEncryptionKey() const
 
 bool Wiimote::IsSideways() const
 {
-  const bool sideways_modifier_toggle = m_hotkeys->getSettingsModifier()[0];
-  const bool sideways_modifier_switch = m_hotkeys->getSettingsModifier()[2];
+  const bool sideways_modifier_toggle = m_hotkeys->GetSettingsModifier()[0];
+  const bool sideways_modifier_switch = m_hotkeys->GetSettingsModifier()[2];
   return m_sideways_setting.GetValue() ^ sideways_modifier_toggle ^ sideways_modifier_switch;
 }
 
 bool Wiimote::IsUpright() const
 {
-  const bool upright_modifier_toggle = m_hotkeys->getSettingsModifier()[1];
-  const bool upright_modifier_switch = m_hotkeys->getSettingsModifier()[3];
+  const bool upright_modifier_toggle = m_hotkeys->GetSettingsModifier()[1];
+  const bool upright_modifier_switch = m_hotkeys->GetSettingsModifier()[3];
   return m_upright_setting.GetValue() ^ upright_modifier_toggle ^ upright_modifier_switch;
 }
 

@@ -594,33 +594,29 @@ void CheckExternalExceptions()
     else
     {
       DEBUG_ASSERT_MSG(POWERPC, 0, "Unknown EXT interrupt: Exceptions == %08x", exceptions);
-
-      // TODO: Re-enable this on ARM64 after fixing https://bugs.dolphin-emu.org/issues/12327
-#ifndef _M_ARM_64
       ERROR_LOG_FMT(POWERPC, "Unknown EXTERNAL INTERRUPT exception: Exceptions == {:08x}",
                     exceptions);
-#endif
     }
   }
 }
 
 void CheckBreakPoints()
 {
-  if (PowerPC::breakpoints.IsAddressBreakPoint(PC))
+  if (!PowerPC::breakpoints.IsBreakPointEnable(PC))
+    return;
+
+  if (PowerPC::breakpoints.IsBreakPointBreakOnHit(PC))
+    CPU::Break();
+  if (PowerPC::breakpoints.IsBreakPointLogOnHit(PC))
   {
-    if (PowerPC::breakpoints.IsBreakPointBreakOnHit(PC))
-      CPU::Break();
-    if (PowerPC::breakpoints.IsBreakPointLogOnHit(PC))
-    {
-      NOTICE_LOG_FMT(MEMMAP,
-                     "BP {:08x} {}({:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} "
-                     "{:08x}) LR={:08x}",
-                     PC, g_symbolDB.GetDescription(PC), GPR(3), GPR(4), GPR(5), GPR(6), GPR(7),
-                     GPR(8), GPR(9), GPR(10), GPR(11), GPR(12), LR);
-    }
-    if (PowerPC::breakpoints.IsTempBreakPoint(PC))
-      PowerPC::breakpoints.Remove(PC);
+    NOTICE_LOG_FMT(MEMMAP,
+                   "BP {:08x} {}({:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} {:08x} "
+                   "{:08x}) LR={:08x}",
+                   PC, g_symbolDB.GetDescription(PC), GPR(3), GPR(4), GPR(5), GPR(6), GPR(7),
+                   GPR(8), GPR(9), GPR(10), GPR(11), GPR(12), LR);
   }
+  if (PowerPC::breakpoints.IsTempBreakPoint(PC))
+    PowerPC::breakpoints.Remove(PC);
 }
 
 void PowerPCState::SetSR(u32 index, u32 value)

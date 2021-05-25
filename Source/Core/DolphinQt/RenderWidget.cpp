@@ -37,9 +37,7 @@
 #include "DolphinQt/Resources.h"
 #include "DolphinQt/Settings.h"
 
-#include "VideoCommon/FreeLookCamera.h"
 #include "VideoCommon/RenderBase.h"
-#include "VideoCommon/VertexShaderManager.h"
 #include "VideoCommon/VideoConfig.h"
 
 extern std::unique_ptr<SlippiPlaybackStatus> g_playbackStatus;
@@ -189,11 +187,6 @@ bool RenderWidget::event(QEvent* event)
 
     break;
   }
-  case QEvent::MouseMove:
-    if (g_Config.bFreeLook)
-      OnFreeLookMouseMove(static_cast<QMouseEvent*>(event));
-    [[fallthrough]];
-
   case QEvent::MouseButtonPress:
     if (!Settings::Instance().GetHideCursor() && isActiveWindow())
     {
@@ -244,23 +237,6 @@ bool RenderWidget::event(QEvent* event)
     break;
   }
   return QWidget::event(event);
-}
-
-void RenderWidget::OnFreeLookMouseMove(QMouseEvent* event)
-{
-  const auto mouse_move = event->pos() - m_last_mouse;
-  m_last_mouse = event->pos();
-
-  if (event->buttons() & Qt::RightButton)
-  {
-    // Camera Pitch and Yaw:
-    g_freelook_camera.Rotate(Common::Vec3{mouse_move.y() / 200.f, mouse_move.x() / 200.f, 0.f});
-  }
-  else if (event->buttons() & Qt::MidButton)
-  {
-    // Camera Roll:
-    g_freelook_camera.Rotate({0.f, 0.f, mouse_move.x() / 200.f});
-  }
 }
 
 void RenderWidget::PassEventToImGui(const QEvent* event)

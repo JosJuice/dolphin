@@ -26,9 +26,9 @@
 #include "Common/ChunkFile.h"
 #include "Common/CommonPaths.h"
 #include "Common/CommonTypes.h"
-#include "Common/File.h"
 #include "Common/FileUtil.h"
 #include "Common/HttpRequest.h"
+#include "Common/IOFile.h"
 #include "Common/Image.h"
 #include "Common/IniFile.h"
 #include "Common/MsgHandler.h"
@@ -157,6 +157,7 @@ GameFile::GameFile(std::string path) : m_file_path(std::move(path))
   {
     m_valid = true;
     m_file_size = m_volume_size = File::GetSize(m_file_path);
+    m_game_id = SConfig::MakeGameID(m_file_name);
     m_volume_size_is_accurate = true;
     m_is_datel_disc = false;
     m_is_nkit = false;

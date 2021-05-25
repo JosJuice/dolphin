@@ -337,6 +337,10 @@ public:
   static Quaternion RotateY(float rad);
   static Quaternion RotateZ(float rad);
 
+  // Returns a quaternion with rotations about each axis simulatenously (e.g processing gyroscope
+  // input)
+  static Quaternion RotateXYZ(const Vec3& rads);
+
   static Quaternion Rotate(float rad, const Vec3& axis);
 
   Quaternion() = default;
@@ -354,6 +358,8 @@ public:
 
 Quaternion operator*(Quaternion lhs, const Quaternion& rhs);
 Vec3 operator*(const Quaternion& lhs, const Vec3& rhs);
+
+Vec3 FromQuaternionToEuler(const Quaternion& q);
 
 class Matrix33
 {
@@ -402,6 +408,7 @@ class Matrix44
 public:
   static Matrix44 Identity();
   static Matrix44 FromMatrix33(const Matrix33& m33);
+  static Matrix44 FromQuaternion(const Quaternion& q);
   static Matrix44 FromArray(const std::array<float, 16>& arr);
 
   static Matrix44 Translate(const Vec3& vec);
