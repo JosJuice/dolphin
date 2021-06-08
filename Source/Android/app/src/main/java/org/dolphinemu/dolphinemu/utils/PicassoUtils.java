@@ -35,22 +35,7 @@ public class PicassoUtils
 
   public static void loadGameCover(ImageView imageView, GameFile gameFile)
   {
-    if ((new File(gameFile.getCustomCoverPath())).exists())
-    {
-      loadCustomGameCover(imageView, gameFile);
-    }
-    else if ((new File(gameFile.getCoverPath())).exists())
-    {
-      loadCachedGameCover(imageView, gameFile);
-    }
-    else if (BooleanSetting.MAIN_USE_GAME_COVERS.getBooleanGlobal())
-    {
-      downloadGameCover(imageView, gameFile);
-    }
-    else
-    {
-      loadNoBannerGameCover(imageView, gameFile);
-    }
+    loadCustomGameCover(imageView, gameFile);
   }
 
   private static void loadCustomGameCover(ImageView imageView, GameFile gameFile)
@@ -62,8 +47,19 @@ public class PicassoUtils
             .fit()
             .centerInside()
             .config(Bitmap.Config.ARGB_8888)
-            .error(R.drawable.no_banner)
-            .into(imageView);
+            .into(imageView, new Callback()
+            {
+              @Override
+              public void onSuccess()
+              {
+              }
+
+              @Override
+              public void onError(Exception ex)
+              {
+                loadCachedGameCover(imageView, gameFile);
+              }
+            });
   }
 
   private static void loadCachedGameCover(ImageView imageView, GameFile gameFile)
@@ -75,8 +71,26 @@ public class PicassoUtils
             .fit()
             .centerInside()
             .config(Bitmap.Config.ARGB_8888)
-            .error(R.drawable.no_banner)
-            .into(imageView);
+            .into(imageView, new Callback()
+            {
+              @Override
+              public void onSuccess()
+              {
+              }
+
+              @Override
+              public void onError(Exception ex)
+              {
+                if (BooleanSetting.MAIN_USE_GAME_COVERS.getBooleanGlobal())
+                {
+                  downloadGameCover(imageView, gameFile);
+                }
+                else
+                {
+                  loadNoBannerGameCover(imageView, gameFile);
+                }
+              }
+            });
   }
 
   private static void downloadGameCover(ImageView imageView, GameFile gameFile)
@@ -109,7 +123,6 @@ public class PicassoUtils
             .fit()
             .centerInside()
             .config(Bitmap.Config.ARGB_8888)
-            .error(R.drawable.no_banner)
             .into(imageView, new Callback()
             {
               @Override
