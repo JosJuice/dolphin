@@ -35,118 +35,107 @@ public class PicassoUtils
 
   public static void loadGameCover(ImageView imageView, GameFile gameFile)
   {
-    Context context = imageView.getContext();
-    File cover = new File(gameFile.getCustomCoverPath());
-    if (cover.exists())
+    if ((new File(gameFile.getCustomCoverPath())).exists())
     {
-      Picasso.get()
-              .load(cover)
-              .noFade()
-              .noPlaceholder()
-              .fit()
-              .centerInside()
-              .config(Bitmap.Config.ARGB_8888)
-              .error(R.drawable.no_banner)
-              .into(imageView);
+      loadCustomGameCover(imageView, gameFile);
     }
-    else if ((cover = new File(gameFile.getCoverPath(context))).exists())
+    else if ((new File(gameFile.getCoverPath())).exists())
     {
-      Picasso.get()
-              .load(cover)
-              .noFade()
-              .noPlaceholder()
-              .fit()
-              .centerInside()
-              .config(Bitmap.Config.ARGB_8888)
-              .error(R.drawable.no_banner)
-              .into(imageView);
+      loadCachedGameCover(imageView, gameFile);
     }
-    // GameTDB has a pretty close to complete collection for US/EN covers. First pass at getting
-    // the cover will be by the disk's region, second will be the US cover, and third EN.
     else if (BooleanSetting.MAIN_USE_GAME_COVERS.getBooleanGlobal())
     {
-      Picasso.get()
-              .load(CoverHelper.buildGameTDBUrl(gameFile, CoverHelper.getRegion(gameFile)))
-              .noFade()
-              .noPlaceholder()
-              .fit()
-              .centerInside()
-              .config(Bitmap.Config.ARGB_8888)
-              .error(R.drawable.no_banner)
-              .into(imageView, new Callback()
-              {
-                @Override
-                public void onSuccess()
-                {
-                  CoverHelper.saveCover(((BitmapDrawable) imageView.getDrawable()).getBitmap(),
-                          gameFile.getCoverPath(context));
-                }
-
-                @Override
-                public void onError(Exception ex) // Second pass using US region
-                {
-                  Picasso.get()
-                          .load(CoverHelper.buildGameTDBUrl(gameFile, "US"))
-                          .fit()
-                          .noFade()
-                          .fit()
-                          .centerInside()
-                          .noPlaceholder()
-                          .config(Bitmap.Config.ARGB_8888)
-                          .error(R.drawable.no_banner)
-                          .into(imageView, new Callback()
-                          {
-                            @Override
-                            public void onSuccess()
-                            {
-                              CoverHelper.saveCover(
-                                      ((BitmapDrawable) imageView.getDrawable()).getBitmap(),
-                                      gameFile.getCoverPath(context));
-                            }
-
-                            @Override
-                            public void onError(Exception ex) // Third and last pass using EN region
-                            {
-                              Picasso.get()
-                                      .load(CoverHelper.buildGameTDBUrl(gameFile, "EN"))
-                                      .fit()
-                                      .noFade()
-                                      .fit()
-                                      .centerInside()
-                                      .noPlaceholder()
-                                      .config(Bitmap.Config.ARGB_8888)
-                                      .error(R.drawable.no_banner)
-                                      .into(imageView, new Callback()
-                                      {
-                                        @Override
-                                        public void onSuccess()
-                                        {
-                                          CoverHelper.saveCover(
-                                                  ((BitmapDrawable) imageView.getDrawable())
-                                                          .getBitmap(),
-                                                  gameFile.getCoverPath(context));
-                                        }
-
-                                        @Override
-                                        public void onError(Exception ex)
-                                        {
-                                        }
-                                      });
-                            }
-                          });
-                }
-              });
+      downloadGameCover(imageView, gameFile);
     }
     else
     {
-      Picasso.get()
-              .load(R.drawable.no_banner)
-              .noFade()
-              .noPlaceholder()
-              .fit()
-              .centerInside()
-              .config(Bitmap.Config.ARGB_8888)
-              .into(imageView);
+      loadNoBannerGameCover(imageView, gameFile);
     }
+  }
+
+  private static void loadCustomGameCover(ImageView imageView, GameFile gameFile)
+  {
+    Picasso.get()
+            .load(new File(gameFile.getCustomCoverPath()))
+            .noFade()
+            .noPlaceholder()
+            .fit()
+            .centerInside()
+            .config(Bitmap.Config.ARGB_8888)
+            .error(R.drawable.no_banner)
+            .into(imageView);
+  }
+
+  private static void loadCachedGameCover(ImageView imageView, GameFile gameFile)
+  {
+    Picasso.get()
+            .load(new File(gameFile.getCoverPath()))
+            .noFade()
+            .noPlaceholder()
+            .fit()
+            .centerInside()
+            .config(Bitmap.Config.ARGB_8888)
+            .error(R.drawable.no_banner)
+            .into(imageView);
+  }
+
+  private static void downloadGameCover(ImageView imageView, GameFile gameFile)
+  {
+    // GameTDB has a pretty close to complete collection for US/EN covers. First pass at getting
+    // the cover will be by the disk's region, second will be the US cover, and third EN.
+    downloadGameCover(imageView, gameFile, CoverHelper.getRegion(gameFile),
+            PicassoUtils::downloadUsGameCover);
+  }
+
+  private static void downloadUsGameCover(ImageView imageView, GameFile gameFile)
+  {
+    // Second pass using US region
+    downloadGameCover(imageView, gameFile, "US", PicassoUtils::downloadEnGameCover);
+  }
+
+  private static void downloadEnGameCover(ImageView imageView, GameFile gameFile)
+  {
+    // Third and last pass using EN region
+    downloadGameCover(imageView, gameFile, "EN", PicassoUtils::loadNoBannerGameCover);
+  }
+
+  private static void downloadGameCover(ImageView imageView, GameFile gameFile, String region,
+          Action2<ImageView, GameFile> onError)
+  {
+    Picasso.get()
+            .load(CoverHelper.buildGameTDBUrl(gameFile, region))
+            .noFade()
+            .noPlaceholder()
+            .fit()
+            .centerInside()
+            .config(Bitmap.Config.ARGB_8888)
+            .error(R.drawable.no_banner)
+            .into(imageView, new Callback()
+            {
+              @Override
+              public void onSuccess()
+              {
+                CoverHelper.saveCover(((BitmapDrawable) imageView.getDrawable()).getBitmap(),
+                        gameFile.getCoverPath());
+              }
+
+              @Override
+              public void onError(Exception ex)
+              {
+                onError.call(imageView, gameFile);
+              }
+            });
+  }
+
+  private static void loadNoBannerGameCover(ImageView imageView, GameFile gameFile)
+  {
+    Picasso.get()
+          .load(R.drawable.no_banner)
+          .noFade()
+          .noPlaceholder()
+          .fit()
+          .centerInside()
+          .config(Bitmap.Config.ARGB_8888)
+          .into(imageView);
   }
 }

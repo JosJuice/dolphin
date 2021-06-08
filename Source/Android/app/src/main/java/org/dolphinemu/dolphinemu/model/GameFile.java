@@ -4,6 +4,8 @@ import android.content.Context;
 
 import androidx.annotation.Keep;
 
+import org.dolphinemu.dolphinemu.NativeLibrary;
+
 public class GameFile
 {
   @Keep
@@ -64,9 +66,9 @@ public class GameFile
 
   public native int getBannerHeight();
 
-  public String getCoverPath(Context context)
+  public String getCoverPath()
   {
-    return context.getExternalCacheDir().getPath() + "/GameCovers/" + getGameTdbId() + ".png";
+    return NativeLibrary.GetCacheDirectory() + "/GameCovers/" + getGameTdbId() + ".png";
   }
 
   public String getCustomCoverPath()
