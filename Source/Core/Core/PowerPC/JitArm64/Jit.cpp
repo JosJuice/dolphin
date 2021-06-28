@@ -197,20 +197,7 @@ void JitArm64::FallBackToInterpreter(UGeckoInstruction inst)
   if (jo.memcheck && (js.op->opinfo->flags & FL_LOADSTORE))
   {
     ARM64Reg WA = gpr.GetReg();
-    LDR(IndexType::Unsigned, WA, PPC_REG, PPCSTATE_OFF(Exceptions));
-    FixupBranch noException = TBZ(WA, IntLog2(EXCEPTION_DSI));
-
-    FixupBranch handleException = B();
-    SwitchToFarCode();
-    SetJumpTarget(handleException);
-
-    gpr.Flush(FlushMode::MaintainState);
-    fpr.Flush(FlushMode::MaintainState);
-
-    WriteExceptionExit(js.compilerPC, false, true);
-
-    SwitchToNearCode();
-    SetJumpTarget(noException);
+    EmitMemcheck(WA);
     gpr.Unlock(WA);
   }
 }

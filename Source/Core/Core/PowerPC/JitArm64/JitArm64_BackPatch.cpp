@@ -50,6 +50,31 @@ void JitArm64::DoBacktrace(uintptr_t access_address, SContext* ctx)
   ERROR_LOG_FMT(DYNA_REC, "Full block: {}", pc_memory);
 }
 
+void JitArm64::EmitMemcheck(ARM64Reg temp_reg)
+{
+  LDR(IndexType::Unsigned, temp_reg, PPC_REG, PPCSTATE_OFF(Exceptions));
+  FixupBranch no_exception = TBZ(temp_reg, IntLog2(EXCEPTION_DSI));
+
+  const bool switch_to_far_code = !IsInFarCode();
+
+  if (switch_to_far_code)
+  {
+    FixupBranch handle_exception = B();
+    SwitchToFarCode();
+    SetJumpTarget(handle_exception);
+  }
+
+  gpr.Flush(FlushMode::MaintainState);
+  fpr.Flush(FlushMode::MaintainState);
+
+  WriteExceptionExit(js.compilerPC, false, true);
+
+  if (switch_to_far_code)
+    SwitchToNearCode();
+
+  SetJumpTarget(no_exception);
+}
+
 void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, ARM64Reg RS,
                                     ARM64Reg addr, BitSet32 gprs_to_push, BitSet32 fprs_to_push)
 {
