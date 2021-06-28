@@ -278,7 +278,6 @@ void JitArm64::lXX(UGeckoInstruction inst)
 {
   INSTRUCTION_START
   JITDISABLE(bJITLoadStoreOff);
-  FALLBACK_IF(jo.memcheck);
 
   u32 a = inst.RA, b = inst.RB, d = inst.RD;
   s32 offset = inst.SIMM_16;
@@ -350,6 +349,8 @@ void JitArm64::lXX(UGeckoInstruction inst)
     break;
   }
 
+  FALLBACK_IF(jo.memcheck && update);
+
   SafeLoadToReg(d, update ? a : (a ? a : -1), offsetReg, flags, offset, update);
 }
 
@@ -357,7 +358,6 @@ void JitArm64::stX(UGeckoInstruction inst)
 {
   INSTRUCTION_START
   JITDISABLE(bJITLoadStoreOff);
-  FALLBACK_IF(jo.memcheck);
 
   u32 a = inst.RA, b = inst.RB, s = inst.RS;
   s32 offset = inst.SIMM_16;
@@ -415,6 +415,8 @@ void JitArm64::stX(UGeckoInstruction inst)
     flags |= BackPatchInfo::FLAG_SIZE_16;
     break;
   }
+
+  FALLBACK_IF(jo.memcheck && update);
 
   SafeStoreFromReg(update ? a : (a ? a : -1), s, regOffset, flags, offset);
 

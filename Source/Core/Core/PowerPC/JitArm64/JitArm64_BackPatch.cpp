@@ -159,23 +159,32 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, AR
       handler.flags = flags;
 
       FastmemArea* fastmem_area = &m_fault_to_handler[fastmem_start];
-      auto handler_loc_iter = m_handler_to_loc.find(handler);
+      fastmem_area->length = fastmem_end - fastmem_start;
 
-      if (handler_loc_iter == m_handler_to_loc.end())
+      // If memcheck is not enabled, we may be able to reuse an already emitted slowmem handler.
+      // Reuse isn't feasible with memcheck, because when it's enabled, the emitted slowmem
+      // handlers embed the current register cache layout and PC.
+      if (jo.memcheck)
       {
         in_far_code = true;
         SwitchToFarCode();
-        const u8* handler_loc = GetCodePtr();
-        m_handler_to_loc[handler] = handler_loc;
-        fastmem_area->slowmem_code = handler_loc;
-        fastmem_area->length = fastmem_end - fastmem_start;
+        fastmem_area->slowmem_code = GetCodePtr();
       }
       else
       {
-        const u8* handler_loc = handler_loc_iter->second;
-        fastmem_area->slowmem_code = handler_loc;
-        fastmem_area->length = fastmem_end - fastmem_start;
-        return;
+        auto handler_loc_iter = m_handler_to_loc.find(handler);
+        if (handler_loc_iter == m_handler_to_loc.end())
+        {
+          in_far_code = true;
+          SwitchToFarCode();
+          fastmem_area->slowmem_code = GetCodePtr();
+          m_handler_to_loc[handler] = GetCodePtr();
+        }
+        else
+        {
+          fastmem_area->slowmem_code = handler_loc_iter->second;
+          return;
+        }
       }
     }
 
@@ -256,6 +265,9 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, AR
 
     m_float_emit.ABI_PopRegisters(fprs_to_push, ARM64Reg::X30);
     ABI_PopRegisters(gprs_to_push);
+
+    if (jo.memcheck)
+      EmitMemcheck(ARM64Reg::W0);
   }
 
   if (in_far_code)
