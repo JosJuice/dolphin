@@ -221,7 +221,7 @@ protected:
   void DumpCode(const u8* start, const u8* end);
 
   // Backpatching routines
-  void EmitMemcheck(Arm64Gen::ARM64Reg temp_reg);
+  void EmitMemcheck(Arm64Gen::ARM64Reg temp_reg, u64 increment_sp_on_exit = 0);
   void EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, Arm64Gen::ARM64Reg RS,
                             Arm64Gen::ARM64Reg addr, BitSet32 gprs_to_push = BitSet32(0),
                             BitSet32 fprs_to_push = BitSet32(0));

@@ -50,7 +50,7 @@ void JitArm64::DoBacktrace(uintptr_t access_address, SContext* ctx)
   ERROR_LOG_FMT(DYNA_REC, "Full block: {}", pc_memory);
 }
 
-void JitArm64::EmitMemcheck(ARM64Reg temp_reg)
+void JitArm64::EmitMemcheck(ARM64Reg temp_reg, u64 increment_sp_on_exit)
 {
   LDR(IndexType::Unsigned, temp_reg, PPC_REG, PPCSTATE_OFF(Exceptions));
   FixupBranch no_exception = TBZ(temp_reg, IntLog2(EXCEPTION_DSI));
@@ -63,6 +63,9 @@ void JitArm64::EmitMemcheck(ARM64Reg temp_reg)
     SwitchToFarCode();
     SetJumpTarget(handle_exception);
   }
+
+  if (increment_sp_on_exit != 0)
+    ADDI2R(ARM64Reg::SP, ARM64Reg::SP, increment_sp_on_exit, temp_reg);
 
   gpr.Flush(FlushMode::MaintainState);
   fpr.Flush(FlushMode::MaintainState);
@@ -188,7 +191,18 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, AR
       }
     }
 
-    ABI_PushRegisters(gprs_to_push);
+    ARM64Reg temp_reg = flags & BackPatchInfo::FLAG_LOAD ? ARM64Reg::W30 : ARM64Reg::W0;
+    int temp_reg_index = DecodeReg(temp_reg);
+
+    if (jo.memcheck && (flags & BackPatchInfo::FLAG_LOAD))
+    {
+      ABI_PushRegisters(BitSet32{temp_reg_index});
+      ABI_PushRegisters(gprs_to_push & ~BitSet32{temp_reg_index});
+    }
+    else
+    {
+      ABI_PushRegisters(gprs_to_push);
+    }
     m_float_emit.ABI_PushRegisters(fprs_to_push, ARM64Reg::X30);
 
     if (flags & BackPatchInfo::FLAG_STORE && flags & BackPatchInfo::FLAG_MASK_FLOAT)
@@ -219,13 +233,11 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, AR
       {
         MOVP2R(ARM64Reg::X8, &PowerPC::Read_U32);
         BLR(ARM64Reg::X8);
-        m_float_emit.INS(32, RS, 0, ARM64Reg::X0);
       }
       else
       {
         MOVP2R(ARM64Reg::X8, &PowerPC::Read_F64);
         BLR(ARM64Reg::X8);
-        m_float_emit.INS(64, RS, 0, ARM64Reg::X0);
       }
     }
     else if (flags & BackPatchInfo::FLAG_STORE)
@@ -259,15 +271,31 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, AR
         MOVP2R(ARM64Reg::X8, &PowerPC::Read_U8);
 
       BLR(ARM64Reg::X8);
-
-      ByteswapAfterLoad(this, RS, ARM64Reg::W0, flags, false, false);
     }
 
     m_float_emit.ABI_PopRegisters(fprs_to_push, ARM64Reg::X30);
-    ABI_PopRegisters(gprs_to_push);
+    if (jo.memcheck && (flags & BackPatchInfo::FLAG_LOAD))
+      ABI_PopRegisters(gprs_to_push & ~BitSet32{temp_reg_index});
+    else
+      ABI_PopRegisters(gprs_to_push);
 
     if (jo.memcheck)
-      EmitMemcheck(ARM64Reg::W0);
+      EmitMemcheck(temp_reg, flags & BackPatchInfo::FLAG_LOAD ? 16 : 0);
+
+    if (flags & BackPatchInfo::FLAG_LOAD)
+    {
+      ASSERT(!gprs_to_push[0]);
+
+      if (flags & BackPatchInfo::FLAG_SIZE_F32)
+        m_float_emit.FMOV(EncodeRegToSingle(RS), ARM64Reg::W0);
+      else if (flags & (BackPatchInfo::FLAG_SIZE_F32X2 | BackPatchInfo::FLAG_SIZE_F64))
+        m_float_emit.FMOV(EncodeRegToDouble(RS), ARM64Reg::X0);
+      else
+        ByteswapAfterLoad(this, RS, ARM64Reg::W0, flags, false, false);
+
+      if (jo.memcheck)
+        ABI_PopRegisters(BitSet32{temp_reg_index});
+    }
   }
 
   if (in_far_code)
