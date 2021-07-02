@@ -22,6 +22,7 @@ public enum BooleanSetting implements AbstractBooleanSetting
           "WiimoteContinuousScanning", false),
   MAIN_WIIMOTE_ENABLE_SPEAKER(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE,
           "WiimoteEnableSpeaker", false),
+  MAIN_MMU(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "MMU", false),
   MAIN_SYNC_GPU(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "SyncGPU", false),
   MAIN_OVERCLOCK_ENABLE(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "OverclockEnable", false),
   MAIN_AUTO_DISC_CHANGE(Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "AutoDiscChange", false),
@@ -199,8 +200,9 @@ public enum BooleanSetting implements AbstractBooleanSetting
           MAIN_DSP_HLE,
           MAIN_CPU_THREAD,
           MAIN_OVERRIDE_REGION_SETTINGS,
-          MAIN_WII_SD_CARD,  // Can actually be changed, but specific code is required
-          MAIN_DSP_JIT
+          MAIN_WII_SD_CARD,  // Can actually be changed, but specialized code is required
+          MAIN_MMU,
+          MAIN_DSP_JIT,
   };
 
   private static final Set<BooleanSetting> NOT_RUNTIME_EDITABLE =
