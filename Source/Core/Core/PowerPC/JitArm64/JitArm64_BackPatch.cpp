@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <string>
 
+#include "Common/Align.h"
 #include "Common/BitSet.h"
 #include "Common/CommonFuncs.h"
 #include "Common/CommonTypes.h"
@@ -192,17 +193,22 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, AR
     }
 
     ARM64Reg temp_reg = flags & BackPatchInfo::FLAG_LOAD ? ARM64Reg::W30 : ARM64Reg::W0;
-    int temp_reg_index = DecodeReg(temp_reg);
+    BitSet32 gprs_to_push_early = {};
+    if ((flags & BackPatchInfo::FLAG_LOAD) && jo.memcheck)
+      gprs_to_push_early[30] = true;
+    if ((flags & BackPatchInfo::FLAG_LOAD) && gprs_to_push[0])
+    {
+      gprs_to_push_early[0] = true;
 
-    if (jo.memcheck && (flags & BackPatchInfo::FLAG_LOAD))
-    {
-      ABI_PushRegisters(BitSet32{temp_reg_index});
-      ABI_PushRegisters(gprs_to_push & ~BitSet32{temp_reg_index});
+      // If we're already pushing one register in the first PushRegisters call, we can push a
+      // second one for free. Let's do so, since it might save one instruction in the second
+      // PushRegisters call. (Do not do this for caller-saved registers which may be in the register
+      // cache, or else EmitMemcheck will not be able to flush the register cache correctly!)
+      gprs_to_push_early[30] = true;
     }
-    else
-    {
-      ABI_PushRegisters(gprs_to_push);
-    }
+
+    ABI_PushRegisters(gprs_to_push_early);
+    ABI_PushRegisters(gprs_to_push & ~gprs_to_push_early);
     m_float_emit.ABI_PushRegisters(fprs_to_push, ARM64Reg::X30);
 
     if (flags & BackPatchInfo::FLAG_STORE && flags & BackPatchInfo::FLAG_MASK_FLOAT)
@@ -274,28 +280,22 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, bool fastmem, bool do_farcode, AR
     }
 
     m_float_emit.ABI_PopRegisters(fprs_to_push, ARM64Reg::X30);
-    if (jo.memcheck && (flags & BackPatchInfo::FLAG_LOAD))
-      ABI_PopRegisters(gprs_to_push & ~BitSet32{temp_reg_index});
-    else
-      ABI_PopRegisters(gprs_to_push);
+    ABI_PopRegisters(gprs_to_push & ~gprs_to_push_early);
 
     if (jo.memcheck)
-      EmitMemcheck(temp_reg, flags & BackPatchInfo::FLAG_LOAD ? 16 : 0);
+      EmitMemcheck(temp_reg, Common::AlignUp(gprs_to_push_early.Count(), 2) * 8);
 
     if (flags & BackPatchInfo::FLAG_LOAD)
     {
-      ASSERT(!gprs_to_push[0]);
-
       if (flags & BackPatchInfo::FLAG_SIZE_F32)
         m_float_emit.FMOV(EncodeRegToSingle(RS), ARM64Reg::W0);
       else if (flags & (BackPatchInfo::FLAG_SIZE_F32X2 | BackPatchInfo::FLAG_SIZE_F64))
         m_float_emit.FMOV(EncodeRegToDouble(RS), ARM64Reg::X0);
       else
         ByteswapAfterLoad(this, RS, ARM64Reg::W0, flags, false, false);
-
-      if (jo.memcheck)
-        ABI_PopRegisters(BitSet32{temp_reg_index});
     }
+
+    ABI_PopRegisters(gprs_to_push_early);
   }
 
   if (in_far_code)
