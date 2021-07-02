@@ -227,7 +227,7 @@ protected:
                             BitSet32 fprs_to_push = BitSet32(0));
   // Loadstore routines
   void SafeLoadToReg(u32 dest, s32 addr, s32 offsetReg, u32 flags, s32 offset, bool update);
-  void SafeStoreFromReg(s32 dest, u32 value, s32 regOffset, u32 flags, s32 offset);
+  void SafeStoreFromReg(s32 dest, u32 value, s32 regOffset, u32 flags, s32 offset, bool update);
 
   void DoJit(u32 em_address, JitBlock* b, u32 nextPC);
 
