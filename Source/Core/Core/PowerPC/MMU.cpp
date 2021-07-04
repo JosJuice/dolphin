@@ -106,6 +106,7 @@ struct TranslateAddressResult
     PAGE_FAULT
   } result;
   u32 address;
+  bool wi;  // Set to true if the view of memory is either write-through or cache-inhibited
   bool Success() const { return result <= PAGE_TABLE_TRANSLATED; }
 };
 template <const XCheckTLBFlag flag>
@@ -1206,18 +1207,20 @@ enum class TLBLookupResult
   UpdateC
 };
 
-static TLBLookupResult LookupTLBPageAddress(const XCheckTLBFlag flag, const u32 vpa, u32* paddr)
+static TLBLookupResult LookupTLBPageAddress(const XCheckTLBFlag flag, const u32 vpa, u32* paddr,
+                                            bool* wi)
 {
   const u32 tag = vpa >> HW_PAGE_INDEX_SHIFT;
   TLBEntry& tlbe = ppcState.tlb[IsOpcodeFlag(flag)][tag & HW_PAGE_INDEX_MASK];
 
   if (tlbe.tag[0] == tag)
   {
+    UPTE2 PTE2;
+    PTE2.Hex = tlbe.pte[0];
+
     // Check if C bit requires updating
     if (flag == XCheckTLBFlag::Write)
     {
-      UPTE2 PTE2;
-      PTE2.Hex = tlbe.pte[0];
       if (PTE2.C == 0)
       {
         PTE2.C = 1;
@@ -1230,16 +1233,18 @@ static TLBLookupResult LookupTLBPageAddress(const XCheckTLBFlag flag, const u32 
       tlbe.recent = 0;
 
     *paddr = tlbe.paddr[0] | (vpa & 0xfff);
+    *wi = (PTE2.WIMG & 0b1100) != 0;
 
     return TLBLookupResult::Found;
   }
   if (tlbe.tag[1] == tag)
   {
+    UPTE2 PTE2;
+    PTE2.Hex = tlbe.pte[0];
+
     // Check if C bit requires updating
     if (flag == XCheckTLBFlag::Write)
     {
-      UPTE2 PTE2;
-      PTE2.Hex = tlbe.pte[1];
       if (PTE2.C == 0)
       {
         PTE2.C = 1;
@@ -1252,6 +1257,7 @@ static TLBLookupResult LookupTLBPageAddress(const XCheckTLBFlag flag, const u32 
       tlbe.recent = 1;
 
     *paddr = tlbe.paddr[1] | (vpa & 0xfff);
+    *wi = (PTE2.WIMG & 0b1100) != 0;
 
     return TLBLookupResult::Found;
   }
@@ -1286,14 +1292,14 @@ void InvalidateTLBEntry(u32 address)
 }
 
 // Page Address Translation
-static TranslateAddressResult TranslatePageAddress(const u32 address, const XCheckTLBFlag flag)
+static TranslateAddressResult TranslatePageAddress(const u32 address, const XCheckTLBFlag flag,
+                                                   bool* wi)
 {
   // TLB cache
   // This catches 99%+ of lookups in practice, so the actual page table entry code below doesn't
-  // benefit
-  // much from optimization.
+  // benefit much from optimization.
   u32 translatedAddress = 0;
-  TLBLookupResult res = LookupTLBPageAddress(flag, address, &translatedAddress);
+  TLBLookupResult res = LookupTLBPageAddress(flag, address, &translatedAddress, wi);
   if (res == TLBLookupResult::Found)
     return TranslateAddressResult{TranslateAddressResult::PAGE_TABLE_TRANSLATED, translatedAddress};
 
@@ -1367,6 +1373,8 @@ static TranslateAddressResult TranslatePageAddress(const u32 address, const XChe
         // We already updated the TLB entry if this was caused by a C bit.
         if (res != TLBLookupResult::UpdateC)
           UpdateTLBEntry(flag, PTE2, address);
+
+        *wi = (PTE2.WIMG & 0b1100) != 0;
 
         return TranslateAddressResult{TranslateAddressResult::PAGE_TABLE_TRANSLATED,
                                       (PTE2.RPN << 12) | offset};
@@ -1511,10 +1519,12 @@ void IBATUpdated()
 template <const XCheckTLBFlag flag>
 static TranslateAddressResult TranslateAddress(u32 address)
 {
-  if (TranslateBatAddess(IsOpcodeFlag(flag) ? ibat_table : dbat_table, &address))
-    return TranslateAddressResult{TranslateAddressResult::BAT_TRANSLATED, address};
+  bool wi = false;
 
-  return TranslatePageAddress(address, flag);
+  if (TranslateBatAddess(IsOpcodeFlag(flag) ? ibat_table : dbat_table, &address))
+    return TranslateAddressResult{TranslateAddressResult::BAT_TRANSLATED, address, wi};
+
+  return TranslatePageAddress(address, flag, &wi);
 }
 
 std::optional<u32> GetTranslatedAddress(u32 address)
