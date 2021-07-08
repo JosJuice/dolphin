@@ -274,6 +274,7 @@ public:
 
   void StoreRegisters(BitSet32 regs) { FlushRegisters(regs, false); }
   void StoreCRRegisters(BitSet32 regs) { FlushCRRegisters(regs, false); }
+  void FlushHostRegisters(BitSet32 regs, bool maintain_state = false);
 
 protected:
   // Get the order of the host registers

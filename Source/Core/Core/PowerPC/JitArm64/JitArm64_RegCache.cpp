@@ -275,6 +275,16 @@ void Arm64GPRCache::FlushRegisters(BitSet32 regs, bool maintain_state)
   }
 }
 
+void Arm64GPRCache::FlushHostRegisters(BitSet32 regs, bool maintain_state)
+{
+  for (size_t i = 0; i < GUEST_GPR_COUNT; ++i)
+  {
+    GuestRegInfo guest_reg = GetGuestByIndex(GUEST_GPR_OFFSET + i);
+    if (guest_reg.reg.GetType() == RegType::Register && regs[DecodeReg(guest_reg.reg.GetReg())])
+      FlushRegister(GUEST_GPR_OFFSET + i, maintain_state);
+  }
+}
+
 void Arm64GPRCache::FlushCRRegisters(BitSet32 regs, bool maintain_state)
 {
   for (size_t i = 0; i < GUEST_CR_COUNT; ++i)

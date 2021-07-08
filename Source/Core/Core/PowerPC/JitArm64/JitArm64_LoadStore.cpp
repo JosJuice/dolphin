@@ -516,6 +516,12 @@ void JitArm64::stmw(UGeckoInstruction inst)
 
   u32 a = inst.RA, s = inst.RS;
   s32 offset = inst.SIMM_16;
+  /*if (s == 18 && js.compilerPC == 0x802c13a4)
+  {
+    NOTICE_LOG_FMT(DYNA_REC, "Falling back on a={}, pc={:#010x}", a, js.compilerPC);
+    FallBackToInterpreter(inst);
+    return;
+  }*/
 
   gpr.Lock(ARM64Reg::W0, ARM64Reg::W1, ARM64Reg::W30);
 
@@ -536,6 +542,7 @@ void JitArm64::stmw(UGeckoInstruction inst)
   constexpr u32 flags = BackPatchInfo::FLAG_STORE | BackPatchInfo::FLAG_SIZE_32;
   for (u32 i = s; i < 32; i++)
   {
+    gpr.FlushHostRegisters(BitSet32(0x08000000));
     ARM64Reg src_reg = gpr.R(i);
 
     BitSet32 regs_in_use = gpr.GetCallerSavedUsed();
