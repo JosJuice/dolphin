@@ -4,7 +4,7 @@ package org.dolphinemu.dolphinemu.features.cheats.model;
 
 import androidx.annotation.Keep;
 
-public class GeckoCheat implements Cheat
+public class GeckoCheat extends AbstractCheat
 {
   @Keep
   private final long mPointer;
@@ -20,5 +20,12 @@ public class GeckoCheat implements Cheat
 
   public native String getName();
 
+  public native boolean getEnabled();
+
+  @Override
+  protected native void setEnabledImpl(boolean enabled);
+
   public static native GeckoCheat[] loadCodes(String gameID, int revision);
+
+  public static native void saveCodes(String gameID, int revision, GeckoCheat[] codes);
 }
