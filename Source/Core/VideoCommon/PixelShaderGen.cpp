@@ -708,13 +708,15 @@ uint WrapCoord(int coord, uint wrap, int size) {{
   max_lod = min(max_lod, (number_of_levels - 1) << 4);
   // Rescale uv to account for the new texture size
   uv.x = (uv.x * size_s) / native_size_s;
-  uv.y = (uv.y * size_t) / native_size_t;)");
+  uv.y = (uv.y * size_t) / native_size_t;
+)");
     }
     else
     {
       out.Write(R"(
   int size_s = )" I_TEXDIMS R"([texmap].x;
-  int size_t = )" I_TEXDIMS R"([texmap].y;)");
+  int size_t = )" I_TEXDIMS R"([texmap].y;
+)");
     }
 
     if (api_type == APIType::OpenGL || api_type == APIType::Vulkan)
