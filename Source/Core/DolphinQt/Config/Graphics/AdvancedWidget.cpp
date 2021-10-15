@@ -138,8 +138,11 @@ void AdvancedWidget::CreateWidgets()
 
   m_defer_efb_access_invalidation =
       new GraphicsBool(tr("Defer EFB Cache Invalidation"), Config::GFX_HACK_EFB_DEFER_INVALIDATION);
+  m_manual_texture_sampling =
+      new GraphicsBool(tr("Manual Texture Sampling"), Config::GFX_HACK_FAST_TEXTURE_SAMPLING, true);
 
   experimental_layout->addWidget(m_defer_efb_access_invalidation, 0, 0);
+  experimental_layout->addWidget(m_manual_texture_sampling, 0, 1);
 
   main_layout->addWidget(debugging_box);
   main_layout->addWidget(utility_box);
@@ -266,6 +269,21 @@ void AdvancedWidget::AddDescriptions()
       "<br><br>May improve performance in some games which rely on CPU EFB Access at the cost "
       "of stability.<br><br><dolphin_emphasis>If unsure, leave this "
       "unchecked.</dolphin_emphasis>");
+  static const char TR_MANUAL_TEXTURE_SAMPLING_DESCRIPTION[] = QT_TR_NOOP(
+      "Use a manual implementation of texture sampling instead of the graphics backend's built-in "
+      "functionality.<br><br>"
+      "This can fix graphical issues in some games on some GPUs (such as broken pre-rendered VP6 "
+      "videos in some EA titles), but will generally (though not always) perform worse.<br><br>"
+      "This option also more accurately handles level of detail calculation.<br><br>"
+      "Manual Texture Sampling also emulates the GameCube/Wii's unusual behavior when wrapping "
+      "textures with non-power-of-2 sizes, but this is disabled when using custom textures or when "
+      "using a higher internal resolution with Scaled EFB Copy enabled.  The accurate texture "
+      "wrapping logic is not known to fix any officially released game, but will perform slightly "
+      "better than the version compatible with custom textures.<br><br>"
+      "Manual Texture Sampling is currently incompatible with Anisotropic Filtering.  If you wish "
+      "to use Anisotropic Filtering, Manual Texture Sampling must be disabled.  This limitation "
+      "will be eliminated in a future version.<br><br>"
+      "<dolphin_emphasis>If unsure, leave this unchecked.</dolphin_emphasis>");
 
 #ifdef _WIN32
   static const char TR_BORDERLESS_FULLSCREEN_DESCRIPTION[] = QT_TR_NOOP(
@@ -299,4 +317,5 @@ void AdvancedWidget::AddDescriptions()
   m_borderless_fullscreen->SetDescription(tr(TR_BORDERLESS_FULLSCREEN_DESCRIPTION));
 #endif
   m_defer_efb_access_invalidation->SetDescription(tr(TR_DEFER_EFB_ACCESS_INVALIDATION_DESCRIPTION));
+  m_manual_texture_sampling->SetDescription(tr(TR_MANUAL_TEXTURE_SAMPLING_DESCRIPTION));
 }
