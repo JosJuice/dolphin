@@ -20,6 +20,8 @@ Dolphin includes or links code of the following third-party software projects:
    [GPLv3+](http://git.savannah.gnu.org/cgit/gettext.git/tree/COPYING)
 - [googletest](https://github.com/google/googletest):
    [3-clause BSD](https://github.com/google/googletest/blob/master/LICENSE)
+- [libadrenotools](https://github.com/bylaws/libadrenotools):
+   [2-clause BSD](https://github.com/bylaws/libadrenotools/blob/master/LICENSE)
 - [libao](https://www.xiph.org/ao/):
    [GPLv2+](https://trac.xiph.org/browser/trunk/ao/README)
 - [libav](https://libav.org/):

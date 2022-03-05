@@ -867,6 +867,10 @@ include_directories(Externals/picojson)
 
 add_subdirectory(Externals/rangeset)
 
+if (ANDROID AND _M_ARM_64)
+  add_subdirectory(Externals/libadrenotools)
+endif()
+
 ########################################
 # Pre-build events: Define configuration variables and write SCM info header
 #
