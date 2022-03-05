@@ -22,6 +22,10 @@ PRIVATE
   uicommon
 )
 
+if (_M_ARM_64)
+  target_link_libraries(main PRIVATE adrenotools)
+endif()
+
 target_link_libraries(main
 PRIVATE
   android
