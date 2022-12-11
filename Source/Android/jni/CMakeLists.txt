@@ -15,6 +15,7 @@ add_library(main SHARED
   MainAndroid.cpp
   RiivolutionPatches.cpp
   SkylanderConfig.cpp
+  VolumeVerifier.cpp
   WiiUtils.cpp
 )
 

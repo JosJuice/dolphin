@@ -10,6 +10,8 @@
 
 #include <jni.h>
 
+#include "Common/CommonTypes.h"
+
 std::string GetJString(JNIEnv* env, jstring jstr);
 jstring ToJString(JNIEnv* env, std::string_view str);
 
@@ -28,6 +30,8 @@ jobjectArray VectorToJObjectArray(JNIEnv* env, const std::vector<T>& vector, jcl
   }
   return result;
 }
+
+jbyteArray VectorToJByteArray(JNIEnv* env, const std::vector<u8>& vector);
 
 // Returns true if the given path should be opened as Android content instead of a normal file.
 bool IsPathAndroidContent(std::string_view uri);

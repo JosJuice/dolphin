@@ -53,6 +53,16 @@ jobjectArray VectorToJStringArray(JNIEnv* env, const std::vector<std::string>& v
   return VectorToJObjectArray(env, vector, IDCache::GetStringClass(), ToJString);
 }
 
+jbyteArray VectorToJByteArray(JNIEnv* env, const std::vector<u8>& vector)
+{
+  const auto size = static_cast<jsize>(vector.size());
+  const jbyteArray out_array = env->NewByteArray(size);
+  if (!out_array)
+    return nullptr;
+  env->SetByteArrayRegion(out_array, 0, size, reinterpret_cast<const jbyte*>(vector.data()));
+  return out_array;
+}
+
 bool IsPathAndroidContent(std::string_view uri)
 {
   return uri.starts_with("content://");

@@ -84,6 +84,9 @@ static jfieldID s_riivolution_patches_pointer;
 static jclass s_wii_update_cb_class;
 static jmethodID s_wii_update_cb_run;
 
+static jclass s_volume_verifier_class;
+static jfieldID s_volume_verifier_pointer;
+
 namespace IDCache
 {
 JNIEnv* GetEnvForThread()
@@ -389,6 +392,16 @@ jmethodID GetWiiUpdateCallbackFunction()
   return s_wii_update_cb_run;
 }
 
+jclass GetVolumeVerifierClass()
+{
+  return s_volume_verifier_class;
+}
+
+jfieldID GetVolumeVerifierPointer()
+{
+  return s_volume_verifier_pointer;
+}
+
 }  // namespace IDCache
 
 extern "C" {
@@ -548,6 +561,12 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
   s_wii_update_cb_run = env->GetMethodID(s_wii_update_cb_class, "run", "(IIJ)Z");
   env->DeleteLocalRef(wii_update_cb_class);
 
+  const jclass volume_verifier_class =
+      env->FindClass("org/dolphinemu/dolphinemu/features/verify/model/VolumeVerifier");
+  s_volume_verifier_class = reinterpret_cast<jclass>(env->NewGlobalRef(volume_verifier_class));
+  s_volume_verifier_pointer = env->GetFieldID(volume_verifier_class, "mPointer", "J");
+  env->DeleteLocalRef(volume_verifier_class);
+
   return JNI_VERSION;
 }
 
@@ -575,5 +594,6 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
   env->DeleteGlobalRef(s_graphics_mod_class);
   env->DeleteGlobalRef(s_riivolution_patches_class);
   env->DeleteGlobalRef(s_wii_update_cb_class);
+  env->DeleteGlobalRef(s_volume_verifier_class);
 }
 }

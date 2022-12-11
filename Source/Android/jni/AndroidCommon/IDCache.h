@@ -83,4 +83,7 @@ jfieldID GetRiivolutionPatchesPointer();
 jclass GetWiiUpdateCallbackClass();
 jmethodID GetWiiUpdateCallbackFunction();
 
+jclass GetVolumeVerifierClass();
+jfieldID GetVolumeVerifierPointer();
+
 }  // namespace IDCache
