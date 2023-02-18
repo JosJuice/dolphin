@@ -10,7 +10,7 @@
 static DiscIO::VolumeVerifier* GetPointer(JNIEnv* env, jobject obj)
 {
   return reinterpret_cast<DiscIO::VolumeVerifier*>(
-      env->GetLongField(obj, IDCache::GetIniFilePointer()));
+      env->GetLongField(obj, IDCache::GetVolumeVerifierPointer()));
 }
 
 extern "C" {
