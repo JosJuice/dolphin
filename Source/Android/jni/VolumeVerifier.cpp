@@ -79,7 +79,7 @@ Java_org_dolphinemu_dolphinemu_features_verify_model_VolumeVerifier_getTotalByte
 JNIEXPORT void JNICALL
 Java_org_dolphinemu_dolphinemu_features_verify_model_VolumeVerifier_finish(JNIEnv* env, jobject obj)
 {
-  GetContext(env, obj)->verifier.Process();
+  GetContext(env, obj)->verifier.Finish();
 }
 
 JNIEXPORT jstring JNICALL
