@@ -85,7 +85,7 @@ public:
 
   void SetToImm32(u32 imm32, bool dirty = true)
   {
-    away |= dirty;
+    away = dirty;
     location = Gen::Imm32(imm32);
   }
 
@@ -145,7 +145,7 @@ public:
   bool IsFree() const { return free && !locked; }
 
   bool IsDirty() const { return dirty; }
-  void MakeDirty() { dirty = true; }
+  void SetDirty(bool dirty_ = true) { dirty = dirty_; }
 
   bool IsLocked() const { return locked > 0; }
   void Lock() { locked++; }

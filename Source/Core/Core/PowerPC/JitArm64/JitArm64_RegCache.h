@@ -74,11 +74,15 @@ enum class RegType
 
 enum class FlushMode
 {
-  // Flushes all registers, no exceptions
-  All,
-  // Flushes registers in a conditional branch
-  // Doesn't wipe the state of the registers from the cache
+  // All dirty registers get written back, and all registers get removed from the cache.
+  Full,
+  // All dirty registers get written back, but the state of the cache is untouched.
+  // The host registers may get clobbered. This is intended for use when doing a block exit
+  // after a conditional branch.
   MaintainState,
+  // Most dirty registers get written back and get set as no longer dirty.
+  // No registers are removed from the cache.
+  Undirty,
 };
 
 class OpArg
@@ -227,7 +231,7 @@ protected:
                            Arm64Gen::ARM64Reg tmp_reg = Arm64Gen::ARM64Reg::INVALID_REG) = 0;
 
   void DiscardRegister(size_t preg);
-  virtual void FlushRegister(size_t preg, bool maintain_state, Arm64Gen::ARM64Reg tmp_reg) = 0;
+  virtual void FlushRegister(size_t preg, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg) = 0;
 
   void IncrementAllUsed()
   {
@@ -325,15 +329,8 @@ public:
 
   BitSet32 GetCallerSavedUsed() const override;
 
-  void StoreRegisters(BitSet32 regs, Arm64Gen::ARM64Reg tmp_reg = Arm64Gen::ARM64Reg::INVALID_REG)
-  {
-    FlushRegisters(regs, false, tmp_reg);
-  }
-
-  void StoreCRRegisters(BitSet8 regs, Arm64Gen::ARM64Reg tmp_reg = Arm64Gen::ARM64Reg::INVALID_REG)
-  {
-    FlushCRRegisters(regs, false, tmp_reg);
-  }
+  void FlushRegisters(BitSet32 regs, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg);
+  void FlushCRRegisters(BitSet8 regs, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg);
 
   void DiscardCRRegisters(BitSet8 regs);
   void ResetCRRegisters(BitSet8 regs);
@@ -346,7 +343,7 @@ protected:
   void FlushByHost(Arm64Gen::ARM64Reg host_reg,
                    Arm64Gen::ARM64Reg tmp_reg = Arm64Gen::ARM64Reg::INVALID_REG) override;
 
-  void FlushRegister(size_t index, bool maintain_state, Arm64Gen::ARM64Reg tmp_reg) override;
+  void FlushRegister(size_t index, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg) override;
 
 private:
   bool IsCallerSaved(Arm64Gen::ARM64Reg reg) const;
@@ -366,9 +363,6 @@ private:
   Arm64Gen::ARM64Reg R(const GuestRegInfo& guest_reg);
   void SetImmediate(const GuestRegInfo& guest_reg, u32 imm, bool dirty);
   void BindToRegister(const GuestRegInfo& guest_reg, bool will_read, bool will_write = true);
-
-  void FlushRegisters(BitSet32 regs, bool maintain_state, Arm64Gen::ARM64Reg tmp_reg);
-  void FlushCRRegisters(BitSet8 regs, bool maintain_state, Arm64Gen::ARM64Reg tmp_reg);
 };
 
 class Arm64FPRCache : public Arm64RegCache
@@ -392,10 +386,7 @@ public:
 
   void FixSinglePrecision(size_t preg);
 
-  void StoreRegisters(BitSet32 regs, Arm64Gen::ARM64Reg tmp_reg = Arm64Gen::ARM64Reg::INVALID_REG)
-  {
-    FlushRegisters(regs, false, tmp_reg);
-  }
+  void FlushRegisters(BitSet32 regs, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg);
 
 protected:
   // Get the order of the host registers
@@ -405,11 +396,9 @@ protected:
   void FlushByHost(Arm64Gen::ARM64Reg host_reg,
                    Arm64Gen::ARM64Reg tmp_reg = Arm64Gen::ARM64Reg::INVALID_REG) override;
 
-  void FlushRegister(size_t preg, bool maintain_state, Arm64Gen::ARM64Reg tmp_reg) override;
+  void FlushRegister(size_t preg, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg) override;
 
 private:
   bool IsCallerSaved(Arm64Gen::ARM64Reg reg) const;
   bool IsTopHalfUsed(Arm64Gen::ARM64Reg reg) const;
-
-  void FlushRegisters(BitSet32 regs, bool maintain_state, Arm64Gen::ARM64Reg tmp_reg);
 };

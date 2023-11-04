@@ -124,8 +124,14 @@ class RegCache
 public:
   enum class FlushMode
   {
+    // All dirty registers get written back, and all registers get removed from the cache.
     Full,
+    // All dirty registers get written back, but the state of the cache is untouched.
+    // This is intended for use when doing a block exit after a conditional branch.
     MaintainState,
+    // All dirty registers get written back and get set as no longer dirty.
+    // No registers are removed from the cache.
+    Undirty,
   };
 
   explicit RegCache(Jit64& jit);
@@ -168,7 +174,7 @@ public:
 
   RCForkGuard Fork();
   void Discard(BitSet32 pregs);
-  void Flush(BitSet32 pregs = BitSet32::AllTrue(32));
+  void Flush(BitSet32 pregs = BitSet32::AllTrue(32), FlushMode mode = FlushMode::Full);
   void Reset(BitSet32 pregs);
   void Revert();
   void Commit();

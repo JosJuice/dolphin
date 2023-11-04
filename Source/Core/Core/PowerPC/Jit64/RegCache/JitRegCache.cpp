@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <utility>
 #include <variant>
 
@@ -404,7 +405,7 @@ void RegCache::Discard(BitSet32 pregs)
   }
 }
 
-void RegCache::Flush(BitSet32 pregs)
+void RegCache::Flush(BitSet32 pregs, FlushMode mode)
 {
   ASSERT_MSG(
       DYNA_REC,
@@ -429,11 +430,12 @@ void RegCache::Flush(BitSet32 pregs)
       // We can have a cached value without a host register through speculative constants.
       // It must be cleared when flushing, otherwise it may be out of sync with PPCSTATE,
       // if PPCSTATE is modified externally (e.g. fallback to interpreter).
-      m_regs[i].SetFlushed();
+      if (mode == FlushMode::Full)
+        m_regs[i].SetFlushed();
       break;
     case PPCCachedReg::LocationType::Bound:
     case PPCCachedReg::LocationType::Immediate:
-      StoreFromRegister(i);
+      StoreFromRegister(i, mode);
       break;
     }
   }
@@ -551,7 +553,7 @@ void RegCache::BindToRegister(preg_t i, bool doLoad, bool makeDirty)
     // reg location must be simplereg; memory locations
     // and immediates are taken care of above.
     if (makeDirty)
-      m_xregs[RX(i)].MakeDirty();
+      m_xregs[RX(i)].SetDirty();
   }
 
   ASSERT_MSG(DYNA_REC, !m_xregs[RX(i)].IsLocked(),
@@ -577,10 +579,14 @@ void RegCache::StoreFromRegister(preg_t i, FlushMode mode)
     doStore = m_xregs[xr].IsDirty();
     if (mode == FlushMode::Full)
       m_xregs[xr].Unbind();
+    else if (mode == FlushMode::Undirty)
+      m_xregs[xr].SetDirty(false);
     break;
   }
   case PPCCachedReg::LocationType::Immediate:
     doStore = true;
+    if (mode == FlushMode::Undirty)
+      m_regs[i].SetToImm32(m_regs[i].Location()->Imm32(), false);
     break;
   }
 

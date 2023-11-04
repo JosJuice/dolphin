@@ -101,8 +101,8 @@ void JitArm64::mtmsr(UGeckoInstruction inst)
   if (!imm_value)
     EmitStoreMembase(gpr.R(inst.RS));
 
-  gpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
-  fpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
+  gpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
+  fpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
 
   WriteExceptionExit(js.compilerPC + 4, true);
 }
@@ -273,8 +273,8 @@ void JitArm64::twx(UGeckoInstruction inst)
 
   if (!analyzer.HasOption(PPCAnalyst::PPCAnalyzer::OPTION_CONDITIONAL_CONTINUE))
   {
-    gpr.Flush(FlushMode::All, WA);
-    fpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
+    gpr.Flush(FlushMode::Full, WA);
+    fpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
     WriteExit(js.compilerPC + 4);
   }
 

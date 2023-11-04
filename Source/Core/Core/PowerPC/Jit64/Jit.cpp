@@ -1089,7 +1089,8 @@ bool Jit64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
         // output, which needs to be bound in the actual instruction compilation.
         // TODO: make this smarter in the case that we're actually register-starved, i.e.
         // prioritize the more important registers.
-        gpr.PreloadRegisters(op.regsIn & op.gprInUse & ~op.gprDiscardable);
+        gpr.PreloadRegisters(op.regsIn & (op.gprWillBeRead | op.gprWillBeWritten) &
+                             ~op.gprDiscardable);
         fpr.PreloadRegisters(op.fregsIn & op.fprInXmm & ~op.fprDiscardable);
       }
 
@@ -1144,8 +1145,12 @@ bool Jit64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
         gpr.Discard(op.gprDiscardable);
         fpr.Discard(op.fprDiscardable);
       }
-      gpr.Flush(~op.gprInUse & (op.regsIn | op.regsOut));
-      fpr.Flush(~op.fprInUse & (op.fregsIn | op.GetFregsOut()));
+      gpr.Flush(~(op.gprWillBeRead | op.gprWillBeWritten) & (op.regsIn | op.regsOut),
+                RegCache::FlushMode::Full);
+      fpr.Flush(~(op.fprWillBeRead | op.fprWillBeWritten) & (op.fregsIn | op.GetFregsOut()),
+                RegCache::FlushMode::Full);
+      gpr.Flush(~op.gprWillBeWritten & op.regsOut, RegCache::FlushMode::Undirty);
+      fpr.Flush(~op.fprWillBeWritten & op.GetFregsOut(), RegCache::FlushMode::Undirty);
 
       if (opinfo->flags & FL_LOADSTORE)
         ++js.numLoadStoreInst;

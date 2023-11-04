@@ -184,8 +184,8 @@ void JitArm64::Shutdown()
 void JitArm64::FallBackToInterpreter(UGeckoInstruction inst)
 {
   FlushCarry();
-  gpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
-  fpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
+  gpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
+  fpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
 
   if (js.op->opinfo->flags & FL_ENDBLOCK)
   {
@@ -245,8 +245,8 @@ void JitArm64::FallBackToInterpreter(UGeckoInstruction inst)
 void JitArm64::HLEFunction(u32 hook_index)
 {
   FlushCarry();
-  gpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
-  fpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
+  gpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
+  fpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
 
   ABI_CallFunction(&HLE::ExecuteFromJIT, js.compilerPC, hook_index);
 }
@@ -1182,8 +1182,8 @@ bool JitArm64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
           m_system.GetPowerPC().GetBreakPoints().IsAddressBreakPoint(op.address))
       {
         FlushCarry();
-        gpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
-        fpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
+        gpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
+        fpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
 
         static_assert(PPCSTATE_OFF(pc) <= 252);
         static_assert(PPCSTATE_OFF(pc) + 4 == PPCSTATE_OFF(npc));
@@ -1207,8 +1207,8 @@ bool JitArm64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
       if (bJITRegisterCacheOff)
       {
         FlushCarry();
-        gpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
-        fpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
+        gpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
+        fpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
       }
 
       CompileInstruction(op);
@@ -1225,9 +1225,19 @@ bool JitArm64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
         fpr.DiscardRegisters(op.fprDiscardable);
         gpr.DiscardCRRegisters(op.crDiscardable);
       }
-      gpr.StoreRegisters(~op.gprInUse & (op.regsIn | op.regsOut));
-      fpr.StoreRegisters(~op.fprInUse & (op.fregsIn | op.GetFregsOut()));
-      gpr.StoreCRRegisters(~op.crInUse & (op.crIn | op.crOut));
+      gpr.FlushRegisters(~(op.gprWillBeRead | op.gprWillBeWritten) & (op.regsIn | op.regsOut),
+                         FlushMode::Full, ARM64Reg::INVALID_REG);
+      fpr.FlushRegisters(~(op.fprWillBeRead | op.fprWillBeWritten) &
+                             (op.fregsIn | op.GetFregsOut()),
+                         FlushMode::Full, ARM64Reg::INVALID_REG);
+      gpr.FlushCRRegisters(~(op.crWillBeRead | op.crWillBeWritten) & (op.crIn | op.crOut),
+                           FlushMode::Full, ARM64Reg::INVALID_REG);
+      gpr.FlushRegisters(~op.gprWillBeWritten & op.regsOut, FlushMode::Undirty,
+                         ARM64Reg::INVALID_REG);
+      fpr.FlushRegisters(~op.fprWillBeWritten & op.GetFregsOut(), FlushMode::Undirty,
+                         ARM64Reg::INVALID_REG);
+      gpr.FlushCRRegisters(~op.crWillBeWritten & op.crOut, FlushMode::Undirty,
+                           ARM64Reg::INVALID_REG);
 
       if (opinfo->flags & FL_LOADSTORE)
         ++js.numLoadStoreInst;
@@ -1242,8 +1252,8 @@ bool JitArm64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
 
   if (code_block.m_broken)
   {
-    gpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
-    fpr.Flush(FlushMode::All, ARM64Reg::INVALID_REG);
+    gpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
+    fpr.Flush(FlushMode::Full, ARM64Reg::INVALID_REG);
     WriteExit(nextPC);
   }
 
