@@ -266,8 +266,8 @@ void Arm64GPRCache::FlushRegisters(BitSet32 regs, FlushMode mode, ARM64Reg tmp_r
         const size_t ppc_offset = GetGuestByIndex(i).ppc_offset;
         if (ppc_offset <= 252)
         {
-          ARM64Reg RX1 = R(GetGuestByIndex(i));
-          ARM64Reg RX2 = R(GetGuestByIndex(i + 1));
+          ARM64Reg RX1 = GetGuestByIndex(i).reg.GetReg();
+          ARM64Reg RX2 = GetGuestByIndex(i + 1).reg.GetReg();
           m_emit->STP(IndexType::Signed, RX1, RX2, PPC_REG, u32(ppc_offset));
           if (mode == FlushMode::Full)
           {
@@ -386,14 +386,11 @@ void Arm64GPRCache::BindToRegister(const GuestRegInfo& guest_reg, bool will_read
   const RegType reg_type = reg.GetType();
   if (reg_type == RegType::NotLoaded || reg_type == RegType::Discarded)
   {
-    const ARM64Reg host_reg = bitsize != 64 ? GetReg() : EncodeRegTo64(GetReg());
-    reg.Load(host_reg);
-    reg.SetDirty(will_write);
     if (will_read)
-    {
-      ASSERT_MSG(DYNA_REC, reg_type != RegType::Discarded, "Attempted to load a discarded value");
-      m_emit->LDR(IndexType::Unsigned, host_reg, PPC_REG, u32(guest_reg.ppc_offset));
-    }
+      R(guest_reg);
+    else
+      reg.Load(bitsize != 64 ? GetReg() : EncodeRegTo64(GetReg()));
+    reg.SetDirty(will_write);
   }
   else if (reg_type == RegType::Immediate)
   {
