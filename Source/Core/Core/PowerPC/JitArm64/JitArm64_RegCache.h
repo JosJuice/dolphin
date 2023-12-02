@@ -273,10 +273,10 @@ public:
 
   // Returns a guest GPR inside of a host register.
   // Will dump an immediate to the host register as well.
-  Arm64Gen::ARM64Reg R(size_t preg) { return R(GetGuestGPR(preg)); }
+  Arm64Gen::ARM64Reg R(size_t preg) { return R(GUEST_GPR_OFFSET + preg, GetGuestGPR(preg)); }
 
   // Returns a guest CR inside of a host register.
-  Arm64Gen::ARM64Reg CR(size_t preg) { return R(GetGuestCR(preg)); }
+  Arm64Gen::ARM64Reg CR(size_t preg) { return R(GUEST_CR_OFFSET + preg, GetGuestCR(preg)); }
 
   // Set a register to an immediate. Only valid for guest GPRs.
   void SetImmediate(size_t preg, u32 imm, bool dirty = true)
@@ -317,14 +317,14 @@ public:
   // flushed. Just remember to call this function again with will_write = true after the Flush call.
   void BindToRegister(size_t preg, bool will_read, bool will_write = true)
   {
-    BindToRegister(GetGuestGPR(preg), will_read, will_write);
+    BindToRegister(GUEST_GPR_OFFSET + preg, GetGuestGPR(preg), will_read, will_write);
   }
 
   // Binds a guest CR to a host register, optionally loading its value.
   // The description of BindToRegister above applies to this function as well.
   void BindCRToRegister(size_t preg, bool will_read, bool will_write = true)
   {
-    BindToRegister(GetGuestCR(preg), will_read, will_write);
+    BindToRegister(GUEST_CR_OFFSET + preg, GetGuestCR(preg), will_read, will_write);
   }
 
   BitSet32 GetCallerSavedUsed() const override;
@@ -346,8 +346,6 @@ protected:
   void FlushRegister(size_t index, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg) override;
 
 private:
-  bool IsCallerSaved(Arm64Gen::ARM64Reg reg) const;
-
   struct GuestRegInfo
   {
     size_t bitsize;
@@ -355,14 +353,22 @@ private:
     OpArg& reg;
   };
 
+  static constexpr size_t GUEST_GPR_COUNT = 32;
+  static constexpr size_t GUEST_CR_COUNT = 8;
+  static constexpr size_t GUEST_GPR_OFFSET = 0;
+  static constexpr size_t GUEST_CR_OFFSET = GUEST_GPR_COUNT;
+
+  bool IsCallerSaved(Arm64Gen::ARM64Reg reg) const;
+
   const OpArg& GetGuestGPROpArg(size_t preg) const;
   GuestRegInfo GetGuestGPR(size_t preg);
   GuestRegInfo GetGuestCR(size_t preg);
   GuestRegInfo GetGuestByIndex(size_t index);
 
-  Arm64Gen::ARM64Reg R(const GuestRegInfo& guest_reg);
+  Arm64Gen::ARM64Reg R(size_t guest_reg_index, const GuestRegInfo& guest_reg);
   void SetImmediate(const GuestRegInfo& guest_reg, u32 imm, bool dirty);
-  void BindToRegister(const GuestRegInfo& guest_reg, bool will_read, bool will_write = true);
+  void BindToRegister(size_t guest_reg_index, const GuestRegInfo& guest_reg, bool will_read,
+                      bool will_write = true);
 };
 
 class Arm64FPRCache : public Arm64RegCache
@@ -401,6 +407,8 @@ protected:
   void FlushRegister(size_t preg, FlushMode mode, Arm64Gen::ARM64Reg tmp_reg) override;
 
 private:
+  static constexpr size_t GUEST_FPR_COUNT = 32;
+
   bool IsCallerSaved(Arm64Gen::ARM64Reg reg) const;
   bool IsTopHalfUsed(Arm64Gen::ARM64Reg reg) const;
 };

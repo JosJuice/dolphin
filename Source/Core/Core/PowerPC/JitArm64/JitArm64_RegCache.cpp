@@ -137,12 +137,6 @@ void Arm64RegCache::DiscardRegister(size_t preg)
     UnlockRegister(host_reg);
 }
 
-// GPR Cache
-constexpr size_t GUEST_GPR_COUNT = 32;
-constexpr size_t GUEST_CR_COUNT = 8;
-constexpr size_t GUEST_GPR_OFFSET = 0;
-constexpr size_t GUEST_CR_OFFSET = GUEST_GPR_COUNT;
-
 Arm64GPRCache::Arm64GPRCache() : Arm64RegCache(GUEST_GPR_COUNT + GUEST_CR_COUNT)
 {
 }
@@ -327,7 +321,7 @@ void Arm64GPRCache::Flush(FlushMode mode, ARM64Reg tmp_reg)
   FlushCRRegisters(BitSet8(0xFF), mode, tmp_reg);
 }
 
-ARM64Reg Arm64GPRCache::R(const GuestRegInfo& guest_reg)
+ARM64Reg Arm64GPRCache::R(size_t guest_reg_index, const GuestRegInfo& guest_reg)
 {
   OpArg& reg = guest_reg.reg;
   size_t bitsize = guest_reg.bitsize;
@@ -355,6 +349,52 @@ ARM64Reg Arm64GPRCache::R(const GuestRegInfo& guest_reg)
     ARM64Reg host_reg = bitsize != 64 ? GetReg() : EncodeRegTo64(GetReg());
     reg.Load(host_reg);
     reg.SetDirty(false);
+
+    // Load two registers at once if we have an opportunity to
+    if (guest_reg_index >= GUEST_GPR_OFFSET && guest_reg_index < GUEST_GPR_OFFSET + GUEST_GPR_COUNT)
+    {
+      const size_t gpr_index = guest_reg_index - GUEST_GPR_OFFSET;
+      const BitSet32 gpr_will_be_read = m_jit->js.op->gprWillBeRead | m_jit->js.op->regsIn;
+
+      if (gpr_index != 0 && m_reg_stats->load_pairs[gpr_index - 1] &&
+          gpr_will_be_read[gpr_index - 1])
+      {
+        const GuestRegInfo& guest_reg_2 = GetGuestGPR(gpr_index - 1);
+        OpArg& reg_2 = guest_reg_2.reg;
+        DEBUG_ASSERT(guest_reg_2.bitsize == bitsize);
+
+        if (reg_2.GetType() == RegType::NotLoaded && guest_reg_2.ppc_offset <= 252)
+        {
+          ARM64Reg host_reg_2 = bitsize != 64 ? GetReg() : EncodeRegTo64(GetReg());
+          reg_2.Load(host_reg_2);
+          reg_2.SetDirty(false);
+
+          m_emit->LDP(IndexType::Signed, host_reg_2, host_reg, PPC_REG,
+                      u32(guest_reg_2.ppc_offset));
+          return host_reg;
+        }
+      }
+
+      if (gpr_index + 1 < GUEST_GPR_COUNT && m_reg_stats->load_pairs[gpr_index] &&
+          gpr_will_be_read[gpr_index + 1] && guest_reg.ppc_offset <= 252)
+      {
+        const GuestRegInfo& guest_reg_2 = GetGuestGPR(gpr_index + 1);
+        OpArg& reg_2 = guest_reg_2.reg;
+        DEBUG_ASSERT(guest_reg_2.bitsize == bitsize);
+
+        if (reg_2.GetType() == RegType::NotLoaded)
+        {
+          ARM64Reg host_reg_2 = bitsize != 64 ? GetReg() : EncodeRegTo64(GetReg());
+          reg_2.Load(host_reg_2);
+          reg_2.SetDirty(false);
+
+          m_emit->LDP(IndexType::Signed, host_reg, host_reg_2, PPC_REG, u32(guest_reg.ppc_offset));
+          return host_reg;
+        }
+      }
+    }
+
+    // Otherwise, just load this register
     m_emit->LDR(IndexType::Unsigned, host_reg, PPC_REG, u32(guest_reg.ppc_offset));
     return host_reg;
   }
@@ -376,7 +416,8 @@ void Arm64GPRCache::SetImmediate(const GuestRegInfo& guest_reg, u32 imm, bool di
   reg.SetDirty(dirty);
 }
 
-void Arm64GPRCache::BindToRegister(const GuestRegInfo& guest_reg, bool will_read, bool will_write)
+void Arm64GPRCache::BindToRegister(size_t guest_reg_index, const GuestRegInfo& guest_reg,
+                                   bool will_read, bool will_write)
 {
   OpArg& reg = guest_reg.reg;
   const size_t bitsize = guest_reg.bitsize;
@@ -387,7 +428,7 @@ void Arm64GPRCache::BindToRegister(const GuestRegInfo& guest_reg, bool will_read
   if (reg_type == RegType::NotLoaded || reg_type == RegType::Discarded)
   {
     if (will_read)
-      R(guest_reg);
+      R(guest_reg_index, guest_reg);
     else
       reg.Load(bitsize != 64 ? GetReg() : EncodeRegTo64(GetReg()));
     reg.SetDirty(will_write);
@@ -476,9 +517,6 @@ void Arm64GPRCache::FlushByHost(ARM64Reg host_reg, ARM64Reg tmp_reg)
     }
   }
 }
-
-// FPR Cache
-constexpr size_t GUEST_FPR_COUNT = 32;
 
 Arm64FPRCache::Arm64FPRCache() : Arm64RegCache(GUEST_FPR_COUNT)
 {
