@@ -351,9 +351,6 @@ ARM64Reg Arm64GPRCache::R(const GuestRegInfo& guest_reg)
     break;
   case RegType::NotLoaded:  // Register isn't loaded at /all/
   {
-    // This is a bit annoying. We try to keep these preloaded as much as possible
-    // This can also happen on cases where PPCAnalyst isn't feeing us proper register usage
-    // statistics
     ARM64Reg host_reg = bitsize != 64 ? GetReg() : EncodeRegTo64(GetReg());
     reg.Load(host_reg);
     reg.SetDirty(false);
