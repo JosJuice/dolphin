@@ -147,8 +147,9 @@ Arm64GPRCache::Arm64GPRCache() : Arm64RegCache(GUEST_GPR_COUNT + GUEST_CR_COUNT)
 {
 }
 
-void Arm64GPRCache::Start(PPCAnalyst::BlockRegStats& stats)
+void Arm64GPRCache::Start(const PPCAnalyst::BlockRegStats& stats)
 {
+  m_reg_stats = &stats;
 }
 
 bool Arm64GPRCache::IsCallerSaved(ARM64Reg reg) const
@@ -484,6 +485,11 @@ constexpr size_t GUEST_FPR_COUNT = 32;
 
 Arm64FPRCache::Arm64FPRCache() : Arm64RegCache(GUEST_FPR_COUNT)
 {
+}
+
+void Arm64FPRCache::Start(const PPCAnalyst::BlockRegStats& stats)
+{
+  m_reg_stats = &stats;
 }
 
 void Arm64FPRCache::Flush(FlushMode mode, ARM64Reg tmp_reg)
