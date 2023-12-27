@@ -58,17 +58,20 @@ constexpr size_t INST_TLB_INDEX = 1;
 
 struct TLBEntry
 {
-  using WayArray = std::array<u32, TLB_WAYS>;
-
   static constexpr u32 INVALID_TAG = 0xffffffff;
 
-  WayArray tag{INVALID_TAG, INVALID_TAG};
-  WayArray paddr{};
-  WayArray vsid{};
-  WayArray pte{};
-  u32 recent = 0;
+  u32 tag{INVALID_TAG};
+  u32 paddr{};
+  u32 vsid{};
+  u32 pte{};
+};
 
-  void Invalidate() { tag.fill(INVALID_TAG); }
+struct TLBSet
+{
+  u32 recent = 0;
+  std::array<TLBEntry, TLB_WAYS> entries;
+
+  void Invalidate() { entries.fill(TLBEntry{}); }
 };
 
 struct PairedSingle
@@ -178,7 +181,7 @@ struct PowerPCState
   u8* stored_stack_pointer = nullptr;
   u8* mem_ptr = nullptr;
 
-  std::array<std::array<TLBEntry, TLB_SIZE / TLB_WAYS>, NUM_TLBS> tlb;
+  std::array<std::array<TLBSet, TLB_SIZE / TLB_WAYS>, NUM_TLBS> tlb;
 
   u32 pagetable_base = 0;
   u32 pagetable_hashmask = 0;
