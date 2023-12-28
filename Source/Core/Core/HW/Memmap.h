@@ -5,6 +5,7 @@
 
 #include <array>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -51,8 +52,17 @@ struct PhysicalMemoryRegion
 
 struct LogicalMemoryView
 {
-  void* mapped_pointer;
+  u32 logical_address;
   u32 mapped_size;
+
+  u32 GetEndAddress() const { return logical_address + mapped_size; }
+
+  bool operator==(const LogicalMemoryView&) const = default;
+
+  bool operator<(const LogicalMemoryView& other) const
+  {
+    return GetEndAddress() <= other.logical_address;
+  }
 };
 
 class MemoryManager
@@ -238,7 +248,7 @@ private:
   // TODO: Do we want to handle the mirrors of the GC RAM?
   std::array<PhysicalMemoryRegion, 4> m_physical_regions{};
 
-  std::vector<LogicalMemoryView> m_logical_mapped_entries;
+  std::set<LogicalMemoryView> m_logical_mapped_entries;
 
   std::array<void*, PowerPC::BAT_PAGE_COUNT> m_physical_page_mappings{};
   std::array<void*, PowerPC::BAT_PAGE_COUNT> m_logical_page_mappings{};

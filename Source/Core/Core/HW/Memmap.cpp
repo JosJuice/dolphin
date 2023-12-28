@@ -237,7 +237,7 @@ void MemoryManager::UpdateLogicalMemory(const PowerPC::BatTable& dbat_table)
 {
   for (auto& entry : m_logical_mapped_entries)
   {
-    m_arena.UnmapFromMemoryRegion(entry.mapped_pointer, entry.mapped_size);
+    m_arena.UnmapFromMemoryRegion(m_logical_base + entry.logical_address, entry.mapped_size);
   }
   m_logical_mapped_entries.clear();
 
@@ -279,7 +279,7 @@ void MemoryManager::UpdateLogicalMemory(const PowerPC::BatTable& dbat_table)
                   intersection_start, mapped_size, logical_address);
               exit(0);
             }
-            m_logical_mapped_entries.push_back({mapped_pointer, mapped_size});
+            m_logical_mapped_entries.emplace(logical_address, mapped_size);
           }
 
           m_logical_page_mappings[i] =
@@ -373,7 +373,7 @@ void MemoryManager::ShutdownFastmemArena()
 
   for (auto& entry : m_logical_mapped_entries)
   {
-    m_arena.UnmapFromMemoryRegion(entry.mapped_pointer, entry.mapped_size);
+    m_arena.UnmapFromMemoryRegion(m_logical_base + entry.logical_address, entry.mapped_size);
   }
   m_logical_mapped_entries.clear();
 
