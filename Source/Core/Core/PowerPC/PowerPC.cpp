@@ -142,6 +142,7 @@ void PowerPCManager::DoState(PointerWrap& p)
     auto& mmu = m_system.GetMMU();
     mmu.IBATUpdated();
     mmu.DBATUpdated();
+    // Note: DBATUpdated implicitly also sets up all TLB mappings anew
   }
 
   // SystemTimers::DecrementerSet();

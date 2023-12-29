@@ -108,8 +108,13 @@ public:
   void ShutdownFastmemArena();
   void DoState(PointerWrap& p);
 
+  // Clears all BAT and page mappings, and creates new BAT mappings
   void UpdateLogicalMemory(const PowerPC::BatTable& dbat_table);
 
+  void AddDataPageMapping(u32 logical_address, u32 physical_address);
+  void RemoveDataPageMapping(u32 logical_address);
+
+  // Sets every byte of memory to 0
   void Clear();
 
   // Routines to access physically addressed memory, designed for use by
@@ -196,6 +201,7 @@ private:
   u32 m_exram_mask = 0;
 
   bool m_is_fastmem_arena_initialized = false;
+  bool m_tlb_mappings_supported = false;
 
   // STATE_TO_SAVE
   // Save the Init(), Shutdown() state
@@ -233,7 +239,7 @@ private:
   //
   // The 4GB starting at m_logical_base represents access from the CPU
   // with address translation turned on.  This mapping is computed based
-  // on the BAT registers.
+  // on the BAT registers and TLB.
   //
   // Each of these 4GB regions is surrounded by 2GB of empty space so overflows
   // in address computation in the JIT don't access unrelated memory.

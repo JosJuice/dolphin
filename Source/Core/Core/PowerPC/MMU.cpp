@@ -1382,8 +1382,8 @@ static TLBLookupResult LookupTLBPageAddress(PowerPC::PowerPCState& ppc_state,
     return TLBLookupResult::NotFound;
 }
 
-static void UpdateTLBEntry(PowerPC::PowerPCState& ppc_state, const XCheckTLBFlag flag, UPTE_Hi pte2,
-                           const u32 address, const u32 vsid)
+void MMU::UpdateTLBEntry(PowerPC::PowerPCState& ppc_state, const XCheckTLBFlag flag, UPTE_Hi pte2,
+                         const u32 address, const u32 vsid)
 {
   if (IsNoExceptionFlag(flag))
     return;
@@ -1393,19 +1393,53 @@ static void UpdateTLBEntry(PowerPC::PowerPCState& ppc_state, const XCheckTLBFlag
   TLBSet& tlb_set = ppc_state.tlb[tlb_index][tag & HW_PAGE_INDEX_MASK];
   const u32 index = tlb_set.recent == 0 && tlb_set.entries[0].tag != TLBEntry::INVALID_TAG;
   tlb_set.recent = index;
+
   TLBEntry& tlb_entry = tlb_set.entries[index];
+  if (!IsOpcodeFlag(flag))
+    UnmapDataTLBEntry(tlb_entry);
   tlb_entry.paddr = pte2.RPN << HW_PAGE_INDEX_SHIFT;
   tlb_entry.pte = pte2.Hex;
   tlb_entry.tag = tag;
   tlb_entry.vsid = vsid;
+  if (!IsOpcodeFlag(flag))
+    MapDataTLBEntry(tlb_entry);
+}
+
+void MMU::MapDataTLBEntry(const TLBEntry& tlb_entry)
+{
+  if (tlb_entry.tag == TLBEntry::INVALID_TAG)
+    return;
+
+  const u32 logical_address = tlb_entry.tag << HW_PAGE_INDEX_SHIFT;
+
+  // BAT has the highest priority, so don't set up a page mapping if there's already a BAT mapping.
+  if (m_dbat_table[logical_address >> BAT_INDEX_SHIFT] & PowerPC::BAT_MAPPED_BIT)
+    return;
+
+  m_memory.AddDataPageMapping(tlb_entry.tag << HW_PAGE_INDEX_SHIFT, tlb_entry.paddr);
+}
+
+void MMU::UnmapDataTLBEntry(const TLBEntry& tlb_entry)
+{
+  if (tlb_entry.tag == TLBEntry::INVALID_TAG)
+    return;
+
+  // If MapDataTLBEntry didn't set up a page mapping due to there already being a BAT mapping,
+  // there's no mapping that should be removed here. (Note that any change in the BAT mappings
+  // clears all page mappings we've set up for TLB entries.)
+
+  m_memory.RemoveDataPageMapping(tlb_entry.tag << HW_PAGE_INDEX_SHIFT);
 }
 
 void MMU::InvalidateTLBEntry(u32 address)
 {
-  const u32 entry_index = (address >> HW_PAGE_INDEX_SHIFT) & HW_PAGE_INDEX_MASK;
+  const u32 set_index = (address >> HW_PAGE_INDEX_SHIFT) & HW_PAGE_INDEX_MASK;
 
-  m_ppc_state.tlb[PowerPC::DATA_TLB_INDEX][entry_index].Invalidate();
-  m_ppc_state.tlb[PowerPC::INST_TLB_INDEX][entry_index].Invalidate();
+  for (size_t i = 0; i < TLB_WAYS; ++i)
+    UnmapDataTLBEntry(m_ppc_state.tlb[PowerPC::DATA_TLB_INDEX][set_index].entries[i]);
+
+  m_ppc_state.tlb[PowerPC::DATA_TLB_INDEX][set_index].Invalidate();
+  m_ppc_state.tlb[PowerPC::INST_TLB_INDEX][set_index].Invalidate();
 }
 
 // Page Address Translation
@@ -1635,6 +1669,11 @@ void MMU::DBATUpdated()
 
 #ifndef _ARCH_32
   m_memory.UpdateLogicalMemory(m_dbat_table);
+
+  // Calling UpdateLogicalMemory removed all TLB mappings, so set them up again
+  for (const TLBSet& tlb_set : m_ppc_state.tlb[PowerPC::DATA_TLB_INDEX])
+    for (const TLBEntry& tlb_entry : tlb_set.entries)
+      MapDataTLBEntry(tlb_entry);
 #endif
 
   // IsOptimizable*Address and dcbz depends on the BAT mapping, so we need a flush here.

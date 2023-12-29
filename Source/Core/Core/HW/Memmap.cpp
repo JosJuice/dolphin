@@ -228,6 +228,16 @@ bool MemoryManager::InitFastmemArena()
     }
   }
 
+  const size_t page_size = m_arena.GetPageSize();
+  m_tlb_mappings_supported = page_size <= PowerPC::HW_PAGE_SIZE;
+  if (!m_tlb_mappings_supported)
+  {
+    INFO_LOG_FMT(MEMMAP,
+                 "Host doesn't support 4K pages. Performance may be lower in some games. "
+                 "Host page size: {} bytes",
+                 page_size);
+  }
+
   m_is_fastmem_arena_initialized = true;
   m_fastmem_arena_size = memory_size;
   return true;
@@ -274,7 +284,7 @@ void MemoryManager::UpdateLogicalMemory(const PowerPC::BatTable& dbat_table)
             if (!mapped_pointer)
             {
               PanicAlertFmt(
-                  "Memory::UpdateLogicalMemory(): Failed to map memory region at 0x{:08X} "
+                  "MemoryManager::UpdateLogicalMemory(): Failed to set up BAT mapping at 0x{:08X} "
                   "(size 0x{:08X}) into logical fastmem region at 0x{:08X}.",
                   intersection_start, mapped_size, logical_address);
               exit(0);
@@ -287,6 +297,66 @@ void MemoryManager::UpdateLogicalMemory(const PowerPC::BatTable& dbat_table)
         }
       }
     }
+  }
+}
+
+void MemoryManager::AddDataPageMapping(u32 logical_address, u32 physical_address)
+{
+  if (!m_tlb_mappings_supported)
+    return;
+
+  for (const auto& physical_region : m_physical_regions)
+  {
+    if (!physical_region.active)
+      continue;
+
+    u32 mapping_address = physical_region.physical_address;
+    u32 mapping_end = mapping_address + physical_region.size;
+    u32 intersection_start = std::max(mapping_address, logical_address);
+    u32 intersection_end = std::min<u32>(mapping_end, logical_address + PowerPC::HW_PAGE_SIZE);
+    if (intersection_start < intersection_end)
+    {
+      // Found an overlapping region; map it.
+      DEBUG_LOG_FMT(MEMMAP, "Adding page table mapping {:08x} -> {:08x}", physical_address,
+                    logical_address);
+      void* mapped_pointer = m_arena.MapInMemoryRegion(physical_address, PowerPC::HW_PAGE_SIZE,
+                                                       m_logical_base + logical_address);
+      if (!mapped_pointer)
+      {
+        PanicAlertFmt(
+            "MemoryManager::AddDataPageMapping(): Failed to set up page table mapping at 0x{:08X} "
+            "into logical fastmem region at 0x{:08X}.",
+            physical_address, logical_address);
+        exit(0);
+      }
+      m_logical_mapped_entries.emplace(logical_address, u32(PowerPC::HW_PAGE_SIZE));
+      return;
+    }
+  }
+
+  DEBUG_LOG_FMT(
+      MEMMAP, "Skipping adding page table mapping {:08x} -> {:08x} - not backed by physical memory",
+      physical_address, logical_address);
+}
+
+void MemoryManager::RemoveDataPageMapping(u32 logical_address)
+{
+  if (!m_tlb_mappings_supported)
+    return;
+
+  DEBUG_LOG_FMT(MEMMAP, "Removing page table mapping at {:08x}", logical_address);
+
+  const LogicalMemoryView view{logical_address, u32(PowerPC::HW_PAGE_SIZE)};
+  auto it = m_logical_mapped_entries.lower_bound(view);
+  if (it != m_logical_mapped_entries.end() && *it == view)
+  {
+    m_logical_mapped_entries.erase(it);
+    m_arena.UnmapFromMemoryRegion(m_logical_base + view.logical_address, view.mapped_size);
+  }
+  else
+  {
+    // Presumably the mapping was never created due to it not being backed by physical memory.
+    // We can skip removing it in this case.
   }
 }
 
@@ -384,6 +454,7 @@ void MemoryManager::ShutdownFastmemArena()
   m_physical_base = nullptr;
   m_logical_base = nullptr;
 
+  m_tlb_mappings_supported = false;
   m_is_fastmem_arena_initialized = false;
 }
 

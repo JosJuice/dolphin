@@ -10,6 +10,7 @@
 
 #include "Common/BitField.h"
 #include "Common/CommonTypes.h"
+#include "Core/PowerPC/Gekko.h"
 
 namespace Core
 {
@@ -25,6 +26,7 @@ namespace PowerPC
 {
 class PowerPCManager;
 struct PowerPCState;
+struct TLBEntry;
 
 enum class RequestedAddressSpace
 {
@@ -301,6 +303,11 @@ private:
   void GenerateISIException(u32 effective_address);
 
   void Memcheck(u32 address, u64 var, bool write, size_t size);
+
+  void UpdateTLBEntry(PowerPC::PowerPCState& ppc_state, const XCheckTLBFlag flag, UPTE_Hi pte2,
+                      const u32 address, const u32 vsid);
+  void MapDataTLBEntry(const PowerPC::TLBEntry& tlb_entry);
+  void UnmapDataTLBEntry(const PowerPC::TLBEntry& tlb_entry);
 
   void UpdateBATs(BatTable& bat_table, u32 base_spr);
   void UpdateFakeMMUBat(BatTable& bat_table, u32 start_addr);
