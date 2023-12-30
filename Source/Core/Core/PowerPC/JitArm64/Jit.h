@@ -10,6 +10,7 @@
 #include <rangeset/rangesizeset.h>
 
 #include "Common/Arm64Emitter.h"
+#include "Common/SmallVector.h"
 
 #include "Core/PowerPC/CPUCoreBase.h"
 #include "Core/PowerPC/JitArm64/JitArm64Cache.h"
@@ -35,6 +36,7 @@ public:
   JitBaseBlockCache* GetBlockCache() override { return &blocks; }
   bool IsInCodeSpace(const u8* ptr) const { return IsInSpace(ptr); }
   bool HandleFault(uintptr_t access_address, SContext* ctx) override;
+  bool RestoreBackpatch() override;
   void DoBacktrace(uintptr_t access_address, SContext* ctx);
   bool HandleFastmemFault(SContext* ctx);
 
@@ -189,6 +191,7 @@ protected:
   {
     const u8* fast_access_code;
     const u8* slow_access_code;
+    Common::SmallVector<u32, 4> overwritten_fast_access_code;
   };
 
   void SetBlockLinkingEnabled(bool enabled);

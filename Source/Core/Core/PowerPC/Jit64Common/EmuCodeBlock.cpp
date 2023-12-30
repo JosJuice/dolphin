@@ -396,6 +396,8 @@ void EmuCodeBlock::SafeLoadToReg(X64Reg reg_value, const Gen::OpArg& opAddress, 
     MOV(32, PPCSTATE(pc), Imm32(js.compilerPC));
   }
 
+  // TODO: current_fastmem_code_ptr
+
   size_t rsp_alignment = (flags & SAFE_LOADSTORE_NO_PROLOG) ? 8 : 0;
   ABI_PushRegistersAndAdjustStack(registersInUse, rsp_alignment);
   switch (accessSize)
@@ -569,6 +571,8 @@ void EmuCodeBlock::SafeWriteRegToReg(OpArg reg_value, X64Reg reg_addr, int acces
   {
     MOV(32, PPCSTATE(pc), Imm32(js.compilerPC));
   }
+
+  // TODO: current_fastmem_code_ptr
 
   size_t rsp_alignment = (flags & SAFE_LOADSTORE_NO_PROLOG) ? 8 : 0;
   ABI_PushRegistersAndAdjustStack(registersInUse, rsp_alignment);

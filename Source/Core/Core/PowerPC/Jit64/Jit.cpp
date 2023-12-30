@@ -249,6 +249,12 @@ bool Jit64::BackPatch(SContext* ctx)
   return true;
 }
 
+bool Jit64::RestoreBackpatch()
+{
+  // TODO
+  return false;
+}
+
 void Jit64::Init()
 {
   InitFastmemArena();

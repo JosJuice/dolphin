@@ -40,6 +40,19 @@ public:
   size_t size() const { return m_size; }
   bool empty() const { return m_size == 0; }
 
+  void resize(size_t count)
+  {
+    for (size_t i = m_size; i < count; ++i)
+      m_array[i] = T{};
+
+    m_size = count;
+  }
+
+  void clear() { m_size = 0; }
+
+  using value_type = T;
+  static constexpr size_t max_size = MaxSize;
+
 private:
   std::array<T, MaxSize> m_array{};
   size_t m_size = 0;

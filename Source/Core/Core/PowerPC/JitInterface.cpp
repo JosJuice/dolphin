@@ -241,6 +241,16 @@ bool JitInterface::HandleStackFault()
   return m_jit->HandleStackFault();
 }
 
+bool JitInterface::RestoreBackpatch()
+{
+  if (!m_jit)
+  {
+    return false;
+  }
+
+  return m_jit->RestoreBackpatch();
+}
+
 void JitInterface::ClearCache()
 {
   if (m_jit)

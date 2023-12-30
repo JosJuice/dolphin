@@ -665,9 +665,6 @@ private:
   template <typename T>
   void MOVI2RImpl(ARM64Reg Rd, T imm);
 
-protected:
-  void Write32(u32 value);
-
 public:
   ARM64XEmitter() = default;
   ARM64XEmitter(u8* code, u8* code_end)
@@ -687,6 +684,7 @@ public:
   void ReserveCodeSpace(u32 bytes);
   u8* AlignCode16();
   u8* AlignCodePage();
+  void Write32(u32 value);
   void FlushIcache();
   void FlushIcacheSection(u8* start, u8* end);
 

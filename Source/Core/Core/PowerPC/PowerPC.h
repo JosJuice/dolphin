@@ -180,6 +180,7 @@ struct PowerPCState
   // Storage for the stack pointer of the BLR optimization.
   u8* stored_stack_pointer = nullptr;
   u8* mem_ptr = nullptr;
+  u8* current_fastmem_code_ptr = nullptr;
 
   std::array<std::array<TLBSet, TLB_SIZE / TLB_WAYS>, NUM_TLBS> tlb;
 

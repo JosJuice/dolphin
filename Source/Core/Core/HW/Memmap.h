@@ -114,6 +114,8 @@ public:
   void AddDataPageMapping(u32 logical_address, u32 physical_address);
   void RemoveDataPageMapping(u32 logical_address);
 
+  bool SupportsDataPageMappings() const { return m_tlb_mappings_supported; }
+
   // Sets every byte of memory to 0
   void Clear();
 

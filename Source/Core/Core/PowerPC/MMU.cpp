@@ -1708,7 +1708,17 @@ MMU::TranslateAddressResult MMU::TranslateAddress(u32 address)
   if (TranslateBatAddress(IsOpcodeFlag(flag) ? m_ibat_table : m_dbat_table, &address, &wi))
     return TranslateAddressResult{TranslateAddressResultEnum::BAT_TRANSLATED, address, wi};
 
-  return TranslatePageAddress<flag>(EffectiveAddress{address}, &wi);
+  TranslateAddressResult result = TranslatePageAddress<flag>(EffectiveAddress{address}, &wi);
+
+  // If the JIT used a slow handler to access memory that has a TLB mapping,
+  // undo the JIT's backpatching so the fast handler will be used again.
+  if (!IsOpcodeFlag(flag) && m_memory.SupportsDataPageMappings() &&
+      result.result == TranslateAddressResultEnum::PAGE_TABLE_TRANSLATED)
+  {
+    m_system.GetJitInterface().RestoreBackpatch();
+  }
+
+  return result;
 }
 
 std::optional<u32> MMU::GetTranslatedAddress(u32 address)

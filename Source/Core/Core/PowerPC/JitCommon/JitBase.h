@@ -197,6 +197,10 @@ public:
   virtual bool HandleFault(uintptr_t access_address, SContext* ctx) = 0;
   bool HandleStackFault();
 
+  // If the PPC instruction pointed to by the current value of the pc register has been backpatched,
+  // restores the corresponding jitted code to its original state.
+  virtual bool RestoreBackpatch() = 0;
+
   static constexpr std::size_t code_buffer_size = 32000;
 
   // This should probably be removed from public:

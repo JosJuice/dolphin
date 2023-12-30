@@ -41,13 +41,14 @@ public:
   JitBaseBlockCache* GetBlockCache() override { return nullptr; }
   void Jit(u32 em_address) override {}
   const CommonAsmRoutinesBase* GetAsmRoutines() override { return nullptr; }
-  virtual bool HandleFault(uintptr_t access_address, SContext* ctx) override
+  bool HandleFault(uintptr_t access_address, SContext* ctx) override
   {
     m_pre_unprotect_time = std::chrono::high_resolution_clock::now();
     Common::UnWriteProtectMemory(m_data, PAGE_GRAN, /*allowExecute*/ false);
     m_post_unprotect_time = std::chrono::high_resolution_clock::now();
     return true;
   }
+  bool RestoreBackpatch() override { return false; }
 
   void* m_data = nullptr;
   std::chrono::time_point<std::chrono::high_resolution_clock> m_pre_unprotect_time,

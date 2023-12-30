@@ -65,6 +65,13 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, MemAccessMode mode, ARM64Reg RS, 
   const bool emit_fast_access = mode != MemAccessMode::AlwaysSlowAccess;
   const bool emit_slow_access = mode != MemAccessMode::AlwaysFastAccess;
 
+  // Speedhack: Don't flush icache, instead make sure backpatched code is all in the same cache line
+  if (emit_fast_access)
+  {
+    while (reinterpret_cast<uintptr_t>(GetCodePtr()) % 16)
+      NOP();
+  }
+
   bool in_far_code = false;
   const u8* fast_access_start = GetCodePtr();
   std::optional<FixupBranch> slow_access_fixup;
@@ -152,6 +159,7 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, MemAccessMode mode, ARM64Reg RS, 
   if (emit_slow_access)
   {
     const bool memcheck = jo.memcheck && !emitting_routine;
+    bool can_backpatch = false;
 
     if (emit_fast_access)
     {
@@ -163,6 +171,7 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, MemAccessMode mode, ARM64Reg RS, 
         FastmemArea* fastmem_area = &m_fault_to_handler[fast_access_end];
         fastmem_area->fast_access_code = fast_access_start;
         fastmem_area->slow_access_code = GetCodePtr();
+        can_backpatch = true;
       }
     }
 
@@ -198,6 +207,12 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, MemAccessMode mode, ARM64Reg RS, 
     {
       MOVI2R(ARM64Reg::W30, js.compilerPC);
       STR(IndexType::Unsigned, ARM64Reg::W30, PPC_REG, PPCSTATE_OFF(pc));
+    }
+
+    if (can_backpatch)
+    {
+      MOVP2R(ARM64Reg::X30, fast_access_start);
+      STR(IndexType::Unsigned, ARM64Reg::X30, PPC_REG, PPCSTATE_OFF(current_fastmem_code_ptr));
     }
 
     if (flags & BackPatchInfo::FLAG_STORE)
@@ -262,6 +277,9 @@ void JitArm64::EmitBackpatchRoutine(u32 flags, MemAccessMode mode, ARM64Reg RS, 
 
     m_float_emit.ABI_PopRegisters(fprs_to_push, ARM64Reg::X30);
     ABI_PopRegisters(gprs_to_push & ~gprs_to_push_early);
+
+    if (can_backpatch)
+      STR(IndexType::Unsigned, ARM64Reg::ZR, PPC_REG, PPCSTATE_OFF(current_fastmem_code_ptr));
 
     if (memcheck)
     {
@@ -332,18 +350,68 @@ bool JitArm64::HandleFastmemFault(SContext* ctx)
   if (pc < fastmem_area_start)
     return false;
 
+  Common::SmallVector<u32, 4>& overwritten_code =
+      slow_handler_iter->second.overwritten_fast_access_code;
+
+  // Fastmem area has already been backpatched
+  if (!overwritten_code.empty())
+    return false;
+
+  const size_t overwritten_code_size = (fastmem_area_end - fastmem_area_start) / sizeof(u32);
+  ASSERT(overwritten_code_size <= overwritten_code.max_size);
+  overwritten_code.resize(overwritten_code_size);
+  std::memcpy(overwritten_code.data(), fastmem_area_start, fastmem_area_end - fastmem_area_start);
+
   const Common::ScopedJITPageWriteAndNoExecute enable_jit_page_writes;
   ARM64XEmitter emitter(const_cast<u8*>(fastmem_area_start), const_cast<u8*>(fastmem_area_end));
 
-  emitter.BL(slow_handler_iter->second.slow_access_code);
-
-  while (emitter.GetCodePtr() < fastmem_area_end)
+  while (emitter.GetCodePtr() < fastmem_area_end - sizeof(u32))
     emitter.NOP();
 
-  m_fault_to_handler.erase(slow_handler_iter);
+  emitter.BL(slow_handler_iter->second.slow_access_code);
 
   emitter.FlushIcache();
 
   ctx->CTX_PC = reinterpret_cast<std::uintptr_t>(fastmem_area_start);
+  return true;
+}
+
+bool JitArm64::RestoreBackpatch()
+{
+  const u8* pc = m_ppc_state.current_fastmem_code_ptr;
+  if (!pc)
+    return false;
+
+  auto slow_handler_iter = m_fault_to_handler.upper_bound(pc);
+
+  // no fastmem area found
+  if (slow_handler_iter == m_fault_to_handler.end())
+    return false;
+
+  const u8* fastmem_area_start = slow_handler_iter->second.fast_access_code;
+  const u8* fastmem_area_end = slow_handler_iter->first;
+
+  // no overlapping fastmem area found
+  if (pc < fastmem_area_start)
+    return false;
+
+  Common::SmallVector<u32, 4>& overwritten_code =
+      slow_handler_iter->second.overwritten_fast_access_code;
+
+  // This fastmem area isn't backpatched, so there's nothing to restore
+  if (overwritten_code.empty())
+    return false;
+
+  const Common::ScopedJITPageWriteAndNoExecute enable_jit_page_writes;
+  ARM64XEmitter emitter(const_cast<u8*>(fastmem_area_start), const_cast<u8*>(fastmem_area_end));
+
+  for (u32 instruction : overwritten_code)
+    emitter.Write32(instruction);
+
+  // Speedhack: Don't flush icache, instead make sure backpatched code is all in the same cache line
+  //emitter.FlushIcache();
+
+  overwritten_code.clear();
+
   return true;
 }

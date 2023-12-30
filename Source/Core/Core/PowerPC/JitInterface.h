@@ -70,6 +70,9 @@ public:
   // Memory Utilities
   bool HandleFault(uintptr_t access_address, SContext* ctx);
   bool HandleStackFault();
+  // If the PPC instruction pointed to by the current value of the pc register has been backpatched,
+  // restores the corresponding jitted code to its original state.
+  bool RestoreBackpatch();
 
   // Clearing CodeCache
   void ClearCache();
