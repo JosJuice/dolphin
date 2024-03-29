@@ -47,8 +47,10 @@ TextureInfo TextureInfo::FromStage(u32 stage)
 
   auto& system = Core::System::GetInstance();
   auto& memory = system.GetMemory();
-  return TextureInfo(stage, memory.GetPointer(address), tlut_ptr, address, texture_format,
-                     tlut_format, width, height, false, nullptr, nullptr, mip_count);
+  // TODO: Passing a size of 1 to GetPointerForRange is NOT memory safe!
+  return TextureInfo(stage, memory.GetPointerForRange(address, 1), tlut_ptr, address,
+                     texture_format, tlut_format, width, height, false, nullptr, nullptr,
+                     mip_count);
 }
 
 TextureInfo::TextureInfo(u32 stage, const u8* ptr, const u8* tlut_ptr, u32 address,

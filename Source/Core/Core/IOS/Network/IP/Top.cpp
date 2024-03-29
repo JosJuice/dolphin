@@ -80,12 +80,12 @@ void NetIPTopDevice::DoState(PointerWrap& p)
   Device::DoState(p);
 }
 
-static int inet_pton(const char* src, unsigned char* dst)
+static std::optional<u32> inet_pton(const char* src)
 {
   int saw_digit = 0;
   int octets = 0;
-  unsigned char tmp[4]{};
-  unsigned char* tp = tmp;
+  u32 tmp;
+  unsigned char* tp = reinterpret_cast<unsigned char*>(&tmp);
   char ch;
 
   while ((ch = *src++) != '\0')
@@ -95,31 +95,30 @@ static int inet_pton(const char* src, unsigned char* dst)
       unsigned int newt = (*tp * 10) + (ch - '0');
 
       if (newt > 255)
-        return 0;
+        return std::nullopt;
       *tp = newt;
       if (!saw_digit)
       {
         if (++octets > 4)
-          return 0;
+          return std::nullopt;
         saw_digit = 1;
       }
     }
     else if (ch == '.' && saw_digit)
     {
       if (octets == 4)
-        return 0;
+        return std::nullopt;
       *++tp = 0;
       saw_digit = 0;
     }
     else
     {
-      return 0;
+      return std::nullopt;
     }
   }
   if (octets < 4)
-    return 0;
-  memcpy(dst, tmp, 4);
-  return 1;
+    return std::nullopt;
+  return tmp;
 }
 
 // Maps SOCKOPT level from Wii to native
@@ -655,7 +654,13 @@ IPCReply NetIPTopDevice::HandleInetPToNRequest(const IOCtlRequest& request)
 
   const std::string address = memory.GetString(request.buffer_in);
   INFO_LOG_FMT(IOS_NET, "IOCTL_SO_INETPTON (Translating: {})", address);
-  return IPCReply(inet_pton(address.c_str(), memory.GetPointer(request.buffer_out + 4)));
+
+  const std::optional<u32> result = inet_pton(address.c_str());
+  if (!result)
+    return IPCReply(0);
+
+  memory.CopyToEmu(request.buffer_out + 4, &*result, sizeof(u32));
+  return IPCReply(1);
 }
 
 IPCReply NetIPTopDevice::HandleInetNToPRequest(const IOCtlRequest& request)

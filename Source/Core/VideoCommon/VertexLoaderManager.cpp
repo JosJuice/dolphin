@@ -91,26 +91,28 @@ void UpdateVertexArrayPointers()
   // Note: Only array bases 0 through 11 are used by the Vertex loaders.
   //       12 through 15 are used for loading data into xfmem.
   // We also only update the array base if the vertex description states we are going to use it.
+
+  // TODO: Passing a size of 1 to GetPointerForRange is NOT memory safe!
   if (IsIndexed(g_main_cp_state.vtx_desc.low.Position))
     cached_arraybases[CPArray::Position] =
-        memory.GetPointer(g_main_cp_state.array_bases[CPArray::Position]);
+        memory.GetPointerForRange(g_main_cp_state.array_bases[CPArray::Position], 1);
 
   if (IsIndexed(g_main_cp_state.vtx_desc.low.Normal))
     cached_arraybases[CPArray::Normal] =
-        memory.GetPointer(g_main_cp_state.array_bases[CPArray::Normal]);
+        memory.GetPointerForRange(g_main_cp_state.array_bases[CPArray::Normal], 1);
 
   for (u8 i = 0; i < g_main_cp_state.vtx_desc.low.Color.Size(); i++)
   {
     if (IsIndexed(g_main_cp_state.vtx_desc.low.Color[i]))
       cached_arraybases[CPArray::Color0 + i] =
-          memory.GetPointer(g_main_cp_state.array_bases[CPArray::Color0 + i]);
+          memory.GetPointerForRange(g_main_cp_state.array_bases[CPArray::Color0 + i], 1);
   }
 
   for (u8 i = 0; i < g_main_cp_state.vtx_desc.high.TexCoord.Size(); i++)
   {
     if (IsIndexed(g_main_cp_state.vtx_desc.high.TexCoord[i]))
       cached_arraybases[CPArray::TexCoord0 + i] =
-          memory.GetPointer(g_main_cp_state.array_bases[CPArray::TexCoord0 + i]);
+          memory.GetPointerForRange(g_main_cp_state.array_bases[CPArray::TexCoord0 + i], 1);
   }
 
   g_bases_dirty = false;

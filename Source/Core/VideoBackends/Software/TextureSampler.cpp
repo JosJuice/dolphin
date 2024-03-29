@@ -137,7 +137,8 @@ void SampleMip(s32 s, s32 t, s32 mip, bool linear, u8 texmap, u8* sample)
     auto& memory = system.GetMemory();
 
     const u32 imageBase = texUnit.texImage3.image_base << 5;
-    imageSrc = memory.GetPointer(imageBase);
+    // TODO: Passing a size of 1 to GetPointerForRange is NOT memory safe!
+    imageSrc = memory.GetPointerForRange(imageBase, 1);
   }
 
   int image_width_minus_1 = ti0.width;
