@@ -119,6 +119,10 @@ struct CodeBlock
   // Did we have a memory_exception?
   bool m_memory_exception = false;
 
+  // Speed hack: If a block doesn't generate overflow, we treat SO as a "don't care" bit when
+  // generating a CR value based on the result of an arithmetic calculation.
+  bool m_accurate_so = false;
+
   // Which GQRs this block uses, if any.
   BitSet8 m_gqr_used;
 
