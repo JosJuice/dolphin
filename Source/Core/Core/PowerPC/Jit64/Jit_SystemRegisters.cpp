@@ -61,8 +61,6 @@ void Jit64::SetCRFieldBit(int field, int bit, X64Reg in)
 
 void Jit64::SetCRFieldBit(X64Reg cr, int bit, X64Reg in)
 {
-  MOVZX(32, 8, in, R(in));
-
   if (bit != PowerPC::CR_GT_BIT)
     FixGTBeforeSettingCRFieldBit(cr);
 
@@ -624,12 +622,14 @@ void Jit64::crXXX(UGeckoInstruction inst)
     case 257:  // crand: A && B => A
     case 449:  // cror:  A || B => A
       GetCRFieldBit(inst.CRBA >> 2, 3 - (inst.CRBA & 3), RSCRATCH, false);
+      MOVZX(32, 8, RSCRATCH, R(RSCRATCH));
       SetCRFieldBit(inst.CRBD >> 2, 3 - (inst.CRBD & 3), RSCRATCH);
       return;
 
     case 33:   // crnor:  ~(A || B) => ~A
     case 225:  // crnand: ~(A && B) => ~A
       GetCRFieldBit(inst.CRBA >> 2, 3 - (inst.CRBA & 3), RSCRATCH, true);
+      MOVZX(32, 8, RSCRATCH, R(RSCRATCH));
       SetCRFieldBit(inst.CRBD >> 2, 3 - (inst.CRBD & 3), RSCRATCH);
       return;
     }
@@ -666,6 +666,7 @@ void Jit64::crXXX(UGeckoInstruction inst)
   }
 
   // Store result bit in CRBD
+  MOVZX(32, 8, RSCRATCH, R(RSCRATCH));
   SetCRFieldBit(inst.CRBD >> 2, 3 - (inst.CRBD & 3), RSCRATCH);
 }
 
