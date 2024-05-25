@@ -120,6 +120,7 @@ public:
   void FinalizeCarry(Gen::CCFlags cond);
   void FinalizeCarry(bool ca);
   void ComputeRC(preg_t preg, bool needs_test = true, bool needs_sext = true);
+  void ComputeRC_SO(Gen::X64Reg cr);
 
   void AndWithMask(Gen::X64Reg reg, u32 mask);
   void RotateLeft(int bits, Gen::X64Reg regOp, const Gen::OpArg& arg, u8 rotate);
@@ -133,6 +134,7 @@ public:
   void GetCRFieldBit(int field, int bit, Gen::X64Reg out, bool negate = false);
   // Clobbers RDX.
   void SetCRFieldBit(int field, int bit, Gen::X64Reg in);
+  void SetCRFieldBit(Gen::X64Reg cr, int bit, Gen::X64Reg in);
   void ClearCRFieldBit(int field, int bit);
   void SetCRFieldBit(int field, int bit);
   void FixGTBeforeSettingCRFieldBit(Gen::X64Reg reg);

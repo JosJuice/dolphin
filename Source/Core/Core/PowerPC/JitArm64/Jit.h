@@ -356,6 +356,7 @@ protected:
   void WriteBLRExit(Arm64Gen::ARM64Reg dest);
 
   void GetCRFieldBit(int field, int bit, Arm64Gen::ARM64Reg out);
+  void SetCRFieldBit(Arm64Gen::ARM64Reg cr, int bit, Arm64Gen::ARM64Reg in, bool negate = false);
   void SetCRFieldBit(int field, int bit, Arm64Gen::ARM64Reg in, bool negate = false);
   void ClearCRFieldBit(int field, int bit);
   void SetCRFieldBit(int field, int bit);
@@ -367,6 +368,7 @@ protected:
 
   void ComputeRC0(Arm64Gen::ARM64Reg reg);
   void ComputeRC0(u32 imm);
+  void ComputeRC_SO(Arm64Gen::ARM64Reg cr);
   void ComputeCarry(Arm64Gen::ARM64Reg reg);  // reg must contain 0 or 1
   void ComputeCarry(bool carry);
   void ComputeCarry();

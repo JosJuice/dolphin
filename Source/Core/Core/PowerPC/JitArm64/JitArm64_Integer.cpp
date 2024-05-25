@@ -13,6 +13,8 @@
 
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
+#include "Core/PowerPC/ConditionRegister.h"
+#include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/Interpreter/Interpreter.h"
 #include "Core/PowerPC/JitArm64/JitArm64_RegCache.h"
 #include "Core/PowerPC/JitCommon/DivUtils.h"
@@ -34,13 +36,32 @@ using namespace JitCommon;
 void JitArm64::ComputeRC0(ARM64Reg reg)
 {
   gpr.BindCRToRegister(0, false);
-  SXTW(gpr.CR(0), reg);
+  ARM64Reg CR = gpr.CR(0);
+
+  SXTW(CR, reg);
+  ComputeRC_SO(CR);
 }
 
 void JitArm64::ComputeRC0(u32 imm)
 {
   gpr.BindCRToRegister(0, false);
-  MOVI2R(gpr.CR(0), s64(s32(imm)));
+  ARM64Reg CR = gpr.CR(0);
+
+  MOVI2R(CR, s64(s32(imm)));
+  ComputeRC_SO(CR);
+}
+
+void JitArm64::ComputeRC_SO(ARM64Reg cr)
+{
+  if (!code_block.m_accurate_so)
+    return;
+
+  auto WA = gpr.GetScopedReg();
+
+  LDRB(IndexType::Unsigned, WA, PPC_REG, PPCSTATE_OFF(xer_so_ov));
+  static_assert(XER_SO_MASK == 2);
+  LSR(WA, WA, 1);
+  SetCRFieldBit(0, PowerPC::CR_SO_BIT, EncodeRegTo64(WA));
 }
 
 void JitArm64::ComputeCarry(ARM64Reg reg)
@@ -664,6 +685,8 @@ void JitArm64::cmp(UGeckoInstruction inst)
     SXTW(CR, RA);
     SUB(CR, CR, RB, ArithOption(RB, ExtendSpecifier::SXTW));
   }
+
+  ComputeRC_SO(CR);
 }
 
 void JitArm64::cmpl(UGeckoInstruction inst)
@@ -695,6 +718,8 @@ void JitArm64::cmpl(UGeckoInstruction inst)
   {
     SUB(CR, EncodeRegTo64(gpr.R(a)), EncodeRegTo64(gpr.R(b)));
   }
+
+  ComputeRC_SO(CR);
 }
 
 void JitArm64::cmpi(UGeckoInstruction inst)
@@ -713,16 +738,19 @@ void JitArm64::cmpi(UGeckoInstruction inst)
   {
     s64 A = static_cast<s32>(gpr.GetImm(a));
     MOVI2R(CR, A - B);
-    return;
   }
-
-  SXTW(CR, gpr.R(a));
-
-  if (B != 0)
+  else
   {
-    auto WA = gpr.GetScopedReg();
-    SUBI2R(CR, CR, B, EncodeRegTo64(WA));
+    SXTW(CR, gpr.R(a));
+
+    if (B != 0)
+    {
+      auto WA = gpr.GetScopedReg();
+      SUBI2R(CR, CR, B, EncodeRegTo64(WA));
+    }
   }
+
+  ComputeRC_SO(CR);
 }
 
 void JitArm64::cmpli(UGeckoInstruction inst)
@@ -740,16 +768,17 @@ void JitArm64::cmpli(UGeckoInstruction inst)
   {
     u64 A = gpr.GetImm(a);
     MOVI2R(CR, A - B);
-    return;
   }
-
-  if (!B)
+  else if (!B)
   {
     MOV(EncodeRegTo32(CR), gpr.R(a));
-    return;
+  }
+  else
+  {
+    SUBI2R(CR, EncodeRegTo64(gpr.R(a)), B, CR);
   }
 
-  SUBI2R(CR, EncodeRegTo64(gpr.R(a)), B, CR);
+  ComputeRC_SO(CR);
 }
 
 void JitArm64::rlwinmx_internal(UGeckoInstruction inst, u32 sh)

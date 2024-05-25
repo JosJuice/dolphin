@@ -585,6 +585,9 @@ void PPCAnalyzer::SetInstructionStats(CodeBlock* block, CodeOp* code,
     block->m_fpa->any = true;
   }
 
+  if (opinfo->flags & FL_SET_OE)
+    block->m_accurate_so = true;
+
   code->crIn = BitSet8(0);
   if (opinfo->flags & FL_READ_ALL_CR)
   {
