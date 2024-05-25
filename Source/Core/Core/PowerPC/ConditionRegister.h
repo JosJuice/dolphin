@@ -56,13 +56,8 @@ struct ConditionRegister
     return cr_val;
   }
 
-  // Warning: these CR operations are fairly slow since they need to convert from
-  // PowerPC format (4 bit) to our internal 64 bit format.
-  void SetField(u32 cr_field, u32 value) { fields[cr_field] = s_crTable[value]; }
-
-  u32 GetField(u32 cr_field) const
+  static constexpr u32 InternalToPPC(u64 cr_val)
   {
-    const u64 cr_val = fields[cr_field];
     u32 ppc_cr = 0;
 
     // LT/SO
@@ -75,6 +70,12 @@ struct ConditionRegister
 
     return ppc_cr;
   }
+
+  // Warning: these CR operations are fairly slow since they need to convert from
+  // PowerPC format (4 bit) to our internal 64 bit format.
+  void SetField(u32 cr_field, u32 value) { fields[cr_field] = s_crTable[value]; }
+
+  u32 GetField(u32 cr_field) const { return InternalToPPC(fields[cr_field]); }
 
   u32 GetBit(u32 bit) const { return (GetField(bit >> 2) >> (3 - (bit & 3))) & 1; }
 
