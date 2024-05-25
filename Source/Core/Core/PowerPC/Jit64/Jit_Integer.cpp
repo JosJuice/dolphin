@@ -16,6 +16,8 @@
 #include "Common/x64Emitter.h"
 
 #include "Core/CoreTiming.h"
+#include "Core/PowerPC/ConditionRegister.h"
+#include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/Interpreter/ExceptionUtils.h"
 #include "Core/PowerPC/Interpreter/Interpreter.h"
 #include "Core/PowerPC/Jit64/RegCache/JitRegCache.h"
@@ -106,7 +108,8 @@ void Jit64::FinalizeCarry(bool ca)
   js.carryFlag = CarryFlag::InPPCState;
   if (js.op->wantsCA)
   {
-    if (CanMergeNextInstructions(1) && js.op[1].wantsCAInFlags)
+    if (CanMergeNextInstructions(1) && js.op[1].wantsCAInFlags &&
+        (!code_block.m_accurate_so || js.op->crOut == BitSet8{}))
     {
       if (ca)
         STC();
@@ -147,7 +150,19 @@ void Jit64::ComputeRC(preg_t preg, bool needs_test, bool needs_sext)
   RCOpArg arg = gpr.Use(preg, RCMode::Read);
   RegCache::Realize(arg);
 
-  if (arg.IsImm())
+  if (code_block.m_accurate_so)
+  {
+    if (arg.IsImm())
+      MOV(64, R(RSCRATCH), Imm32(arg.SImm32()));
+    else if (needs_sext)
+      MOVSX(64, 32, RSCRATCH, arg);
+    else
+      MOV(32, R(RSCRATCH), arg);
+
+    ComputeRC_SO(RSCRATCH);
+    MOV(64, PPCSTATE_CR(0), R(RSCRATCH));
+  }
+  else if (arg.IsImm())
   {
     MOV(64, PPCSTATE_CR(0), Imm32(arg.SImm32()));
   }
@@ -188,6 +203,16 @@ void Jit64::ComputeRC(preg_t preg, bool needs_test, bool needs_sext)
       DoMergedBranchCondition();
     }
   }
+}
+
+void Jit64::ComputeRC_SO(X64Reg cr)
+{
+  DEBUG_ASSERT(cr != RSCRATCH2);
+
+  MOVZX(32, 8, RSCRATCH2, PPCSTATE(xer_so_ov));
+  static_assert(XER_SO_MASK == 2);
+  SHR(32, R(RSCRATCH2), Imm8(1));
+  SetCRFieldBit(cr, PowerPC::CR_SO_BIT, RSCRATCH2);
 }
 
 // we can't do this optimization in the emitter because MOVZX and AND have different effects on
@@ -375,6 +400,9 @@ bool Jit64::CheckMergedBranch(u32 crf) const
   if (!CanMergeNextInstructions(1))
     return false;
 
+  if (code_block.m_accurate_so)
+    return false;
+
   const UGeckoInstruction& next = js.op[1].inst;
   return (((next.OPCD == 16 /* bcx */) ||
            ((next.OPCD == 19) && (next.SUBOP10 == 528) /* bcctrx */) ||
@@ -477,7 +505,7 @@ void Jit64::DoMergedBranchCondition()
   }
   else
   {
-    // SO bit, do not branch (we don't emulate SO for cmp).
+    // SO bit, do not branch (we don't emulate SO for branch following).
     pDontBranch = J(Jump::Near);
   }
 
@@ -529,7 +557,7 @@ void Jit64::DoMergedBranchImmediate(s64 val)
     branch = condition ? val > 0 : val <= 0;
   else if (test_bit & 2)
     branch = condition ? val == 0 : val != 0;
-  else  // SO bit, do not branch (we don't emulate SO for cmp).
+  else  // SO bit, do not branch (we don't emulate SO for branch following).
     branch = false;
 
   if (branch)
@@ -671,7 +699,11 @@ void Jit64::cmpXX(UGeckoInstruction inst)
 
   if (comparand.IsImm() && comparand.Imm32() == 0)
   {
+    if (code_block.m_accurate_so)
+      ComputeRC_SO(input);
+
     MOV(64, PPCSTATE_CR(crf), R(input));
+
     // Place the comparison next to the branch for macro-op fusion
     if (merge_branch)
       TEST(64, R(input), R(input));
@@ -679,6 +711,10 @@ void Jit64::cmpXX(UGeckoInstruction inst)
   else
   {
     SUB(64, R(input), comparand);
+
+    if (code_block.m_accurate_so)
+      ComputeRC_SO(input);
+
     MOV(64, PPCSTATE_CR(crf), R(input));
   }
 
