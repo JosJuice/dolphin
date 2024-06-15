@@ -14,7 +14,7 @@ extern "C" {
 
 JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_getFigureMap(JNIEnv* env,
-                                                                                 jobject obj)
+                                                                                 jobject)
 {
   auto& system = Core::System::GetInstance();
 
@@ -38,7 +38,7 @@ Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_getFigureMap
 
 JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_getInverseFigureMap(JNIEnv* env,
-                                                                                        jobject obj)
+                                                                                        jobject)
 {
   auto& system = Core::System::GetInstance();
 
@@ -61,8 +61,7 @@ Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_getInverseFi
 }
 
 JNIEXPORT void JNICALL
-Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_removeFigure(JNIEnv* env,
-                                                                                 jclass clazz,
+Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_removeFigure(JNIEnv*, jclass,
                                                                                  jint position)
 {
   auto& system = Core::System::GetInstance();
@@ -70,8 +69,7 @@ Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_removeFigure
 }
 
 JNIEXPORT jstring JNICALL
-Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_loadFigure(JNIEnv* env,
-                                                                               jclass clazz,
+Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_loadFigure(JNIEnv* env, jclass,
                                                                                jint position,
                                                                                jstring file_name)
 {
@@ -94,7 +92,7 @@ Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_loadFigure(J
 
 JNIEXPORT jstring JNICALL
 Java_org_dolphinemu_dolphinemu_features_infinitybase_InfinityConfig_createFigure(
-    JNIEnv* env, jclass clazz, jlong figure_number, jstring fileName, jint position)
+    JNIEnv* env, jclass, jlong figure_number, jstring fileName, jint position)
 {
   u32 fig_num = static_cast<u32>(figure_number);
 

@@ -64,7 +64,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_getInverseSky
 
 JNIEXPORT jboolean JNICALL
 Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_removeSkylander(JNIEnv* env,
-                                                                                   jclass clazz,
+                                                                                   jclass,
                                                                                    jint slot)
 {
   auto& system = Core::System::GetInstance();
@@ -73,8 +73,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_removeSkyland
 
 JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_loadSkylander(JNIEnv* env,
-                                                                                 jclass clazz,
-                                                                                 jint slot,
+                                                                                 jclass, jint slot,
                                                                                  jstring file_name)
 {
   File::IOFile sky_file(GetJString(env, file_name), "r+b");
@@ -117,7 +116,7 @@ Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_loadSkylander
 
 JNIEXPORT jobject JNICALL
 Java_org_dolphinemu_dolphinemu_features_skylanders_SkylanderConfig_createSkylander(
-    JNIEnv* env, jclass clazz, jint id, jint var, jstring fileName, jint slot)
+    JNIEnv* env, jclass, jint id, jint var, jstring fileName, jint slot)
 {
   u16 sky_id = static_cast<u16>(id);
   u16 sky_var = static_cast<u16>(var);
