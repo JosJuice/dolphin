@@ -125,8 +125,7 @@ JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_doOnlineUpd
   Common::ScopeGuard scope_guard([jCallbackGlobal, env] { env->DeleteGlobalRef(jCallbackGlobal); });
 
   const auto callback = [&jCallbackGlobal](int processed, int total, u64 title_id) {
-    JNIEnv* env = IDCache::GetEnvForThread();
-    return static_cast<bool>(env->CallBooleanMethod(
+    return static_cast<bool>(IDCache::GetEnvForThread()->CallBooleanMethod(
         jCallbackGlobal, IDCache::GetWiiUpdateCallbackFunction(), processed, total, title_id));
   };
 
@@ -146,8 +145,7 @@ JNIEXPORT jint JNICALL Java_org_dolphinemu_dolphinemu_utils_WiiUtils_doDiscUpdat
   Common::ScopeGuard scope_guard([jCallbackGlobal, env] { env->DeleteGlobalRef(jCallbackGlobal); });
 
   const auto callback = [&jCallbackGlobal](int processed, int total, u64 title_id) {
-    JNIEnv* env = IDCache::GetEnvForThread();
-    return static_cast<bool>(env->CallBooleanMethod(
+    return static_cast<bool>(IDCache::GetEnvForThread()->CallBooleanMethod(
         jCallbackGlobal, IDCache::GetWiiUpdateCallbackFunction(), processed, total, title_id));
   };
 

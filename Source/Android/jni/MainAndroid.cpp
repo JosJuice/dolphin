@@ -702,12 +702,12 @@ JNIEXPORT jboolean JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_ConvertD
   Common::ScopeGuard scope_guard([jCallbackGlobal, env] { env->DeleteGlobalRef(jCallbackGlobal); });
 
   const auto callback = [&jCallbackGlobal](const std::string& text, float completion) {
-    JNIEnv* env = IDCache::GetEnvForThread();
+    JNIEnv* env_ = IDCache::GetEnvForThread();
 
-    jstring j_text = ToJString(env, text);
-    jboolean result = env->CallBooleanMethod(jCallbackGlobal, IDCache::GetCompressCallbackRun(),
-                                             j_text, completion);
-    env->DeleteLocalRef(j_text);
+    jstring j_text = ToJString(env_, text);
+    jboolean result = env_->CallBooleanMethod(jCallbackGlobal, IDCache::GetCompressCallbackRun(),
+                                              j_text, completion);
+    env_->DeleteLocalRef(j_text);
 
     return static_cast<bool>(result);
   };

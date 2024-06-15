@@ -34,9 +34,10 @@ template <typename T>
 static jobjectArray CoreDeviceControlVectorToJava(JNIEnv* env, jobject device,
                                                   const std::vector<T*>& controls)
 {
-  return VectorToJObjectArray(
-      env, controls, IDCache::GetCoreDeviceControlClass(),
-      [device](JNIEnv* env, T* control) { return CoreDeviceControlToJava(env, device, control); });
+  return VectorToJObjectArray(env, controls, IDCache::GetCoreDeviceControlClass(),
+                              [device](JNIEnv* env_, T* control) {
+                                return CoreDeviceControlToJava(env_, device, control);
+                              });
 }
 
 static std::shared_ptr<ciface::Core::Device>* GetDevicePointer(JNIEnv* env, jobject obj)

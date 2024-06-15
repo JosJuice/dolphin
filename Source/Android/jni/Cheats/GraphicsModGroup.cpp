@@ -64,7 +64,7 @@ Java_org_dolphinemu_dolphinemu_features_cheats_model_GraphicsModGroup_getMods(JN
 
   return VectorToJObjectArray(
       env, mods, IDCache::GetGraphicsModClass(),
-      [obj](JNIEnv* env, GraphicsModConfig* mod) { return GraphicsModToJava(env, mod, obj); });
+      [obj](JNIEnv* env_, GraphicsModConfig* mod) { return GraphicsModToJava(env_, mod, obj); });
 }
 
 JNIEXPORT void JNICALL
