@@ -9,4 +9,7 @@ object AchievementModel {
 
     @JvmStatic
     external fun logout()
+
+    @JvmStatic
+    external fun isHardcoreModeActive(): Boolean
 }
