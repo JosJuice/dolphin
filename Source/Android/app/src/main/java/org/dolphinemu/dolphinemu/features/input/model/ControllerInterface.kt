@@ -14,10 +14,10 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.annotation.Keep
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import org.dolphinemu.dolphinemu.DolphinApplication
+import org.dolphinemu.dolphinemu.utils.LiveEvent
 import org.dolphinemu.dolphinemu.utils.LooperThread
+import org.dolphinemu.dolphinemu.utils.MutableLiveEvent
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -29,14 +29,14 @@ object ControllerInterface {
     private lateinit var looperThread: LooperThread
 
     private var inputStateUpdatePending = AtomicBoolean(false)
-    private val inputStateVersion = MutableLiveData(0)
-    private val devicesVersion = MutableLiveData(0)
+    private val _inputStateChanged = MutableLiveEvent<Unit>()
+    private val _devicesChanged = MutableLiveEvent<Unit>()
 
-    val inputStateChanged: LiveData<Int>
-        get() = inputStateVersion
+    val inputStateChanged: LiveEvent<Unit>
+        get() = _inputStateChanged
 
-    val devicesChanged: LiveData<Int>
-        get() = devicesVersion
+    val devicesChanged: LiveEvent<Unit>
+        get() = _devicesChanged
 
     /**
      * Activities which want to pass on inputs to native code
@@ -115,7 +115,7 @@ object ControllerInterface {
         if (!inputStateUpdatePending.getAndSet(true)) {
             Handler(Looper.getMainLooper()).post {
                 if (inputStateUpdatePending.getAndSet(false)) {
-                    inputStateVersion.value = inputStateVersion.value?.plus(1)
+                    _inputStateChanged.trigger(Unit)
                 }
             }
         }
@@ -124,9 +124,7 @@ object ControllerInterface {
     @Keep
     @JvmStatic
     private fun onDevicesChanged() {
-        Handler(Looper.getMainLooper()).post {
-            devicesVersion.value = devicesVersion.value?.plus(1)
-        }
+        _devicesChanged.trigger(Unit)
     }
 
     @Keep

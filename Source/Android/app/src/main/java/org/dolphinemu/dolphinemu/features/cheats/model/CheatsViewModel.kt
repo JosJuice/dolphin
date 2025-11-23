@@ -7,6 +7,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import org.dolphinemu.dolphinemu.features.cheats.model.ARCheat.Companion.loadCodes
 import org.dolphinemu.dolphinemu.features.cheats.model.ARCheat.Companion.saveCodes
+import org.dolphinemu.dolphinemu.utils.LiveEvent
+import org.dolphinemu.dolphinemu.utils.MutableLiveEvent
 import kotlin.collections.ArrayList
 
 class CheatsViewModel : ViewModel() {
@@ -20,16 +22,16 @@ class CheatsViewModel : ViewModel() {
     private val _isEditing = MutableLiveData(false)
     val isEditing: LiveData<Boolean> get() = _isEditing
 
-    private val _cheatAddedEvent = MutableLiveData<Int?>(null)
-    val cheatAddedEvent: LiveData<Int?> get() = _cheatAddedEvent
-    private val _cheatChangedEvent = MutableLiveData<Int?>(null)
-    val cheatChangedEvent: LiveData<Int?> get() = _cheatChangedEvent
-    private val _cheatDeletedEvent = MutableLiveData<Int?>(null)
-    val cheatDeletedEvent: LiveData<Int?> get() = _cheatDeletedEvent
-    private val _geckoCheatsDownloadedEvent = MutableLiveData<Int?>(null)
-    val geckoCheatsDownloadedEvent: LiveData<Int?> get() = _geckoCheatsDownloadedEvent
-    private val _openDetailsViewEvent = MutableLiveData(false)
-    val openDetailsViewEvent: LiveData<Boolean> get() = _openDetailsViewEvent
+    private val _cheatAddedEvent = MutableLiveEvent<Int>()
+    val cheatAddedEvent: LiveEvent<Int> get() = _cheatAddedEvent
+    private val _cheatChangedEvent = MutableLiveEvent<Int>()
+    val cheatChangedEvent: LiveEvent<Int> get() = _cheatChangedEvent
+    private val _cheatDeletedEvent = MutableLiveEvent<Int>()
+    val cheatDeletedEvent: LiveEvent<Int> get() = _cheatDeletedEvent
+    private val _geckoCheatsDownloadedEvent = MutableLiveEvent<Int>()
+    val geckoCheatsDownloadedEvent: LiveEvent<Int> get() = _geckoCheatsDownloadedEvent
+    private val _openDetailsViewEvent = MutableLiveEvent<Unit>()
+    val openDetailsViewEvent: LiveEvent<Unit> get() = _openDetailsViewEvent
 
     private var graphicsModGroup: GraphicsModGroup? = null
     var graphicsMods: ArrayList<GraphicsMod> = ArrayList()
@@ -141,8 +143,7 @@ class CheatsViewModel : ViewModel() {
     }
 
     private fun notifyCheatAdded() {
-        _cheatAddedEvent.value = selectedCheatPosition
-        _cheatAddedEvent.value = null
+        _cheatAddedEvent.trigger(selectedCheatPosition)
     }
 
     /**
@@ -156,8 +157,7 @@ class CheatsViewModel : ViewModel() {
      * Notifies that an edit has been made to the contents of the cheat at the given position.
      */
     private fun notifyCheatChanged(position: Int) {
-        _cheatChangedEvent.value = position
-        _cheatChangedEvent.value = null
+        _cheatChangedEvent.trigger(position)
     }
 
     fun deleteSelectedCheat() {
@@ -177,8 +177,7 @@ class CheatsViewModel : ViewModel() {
      * Notifies that the cheat at the given position has been deleted.
      */
     private fun notifyCheatDeleted(position: Int) {
-        _cheatDeletedEvent.value = position
-        _cheatDeletedEvent.value = null
+        _cheatDeletedEvent.trigger(position)
     }
 
     fun addDownloadedGeckoCodes(cheats: Array<GeckoCheat>): Int {
@@ -193,15 +192,13 @@ class CheatsViewModel : ViewModel() {
 
         if (cheatsAdded != 0) {
             geckoCheatsNeedSaving = true
-            _geckoCheatsDownloadedEvent.value = cheatsAdded
-            _geckoCheatsDownloadedEvent.value = null
+            _geckoCheatsDownloadedEvent.trigger(cheatsAdded)
         }
 
         return cheatsAdded
     }
 
     fun openDetailsView() {
-        _openDetailsViewEvent.value = true
-        _openDetailsViewEvent.value = false
+        _openDetailsViewEvent.trigger(Unit)
     }
 }

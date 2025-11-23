@@ -18,24 +18,22 @@ class CheatsAdapter(
     private val viewModel: CheatsViewModel
 ) : RecyclerView.Adapter<CheatItemViewHolder>() {
     init {
-        viewModel.cheatAddedEvent.observe(activity) { position: Int? ->
-            position?.let { notifyItemInserted(it) }
+        viewModel.cheatAddedEvent.observe(activity) { position: Int ->
+            notifyItemInserted(position)
         }
 
-        viewModel.cheatChangedEvent.observe(activity) { position: Int? ->
-            position?.let { notifyItemChanged(it) }
+        viewModel.cheatChangedEvent.observe(activity) { position: Int ->
+            notifyItemChanged(position)
         }
 
-        viewModel.cheatDeletedEvent.observe(activity) { position: Int? ->
-            position?.let { notifyItemRemoved(it) }
+        viewModel.cheatDeletedEvent.observe(activity) { position: Int ->
+            notifyItemRemoved(position)
         }
 
-        viewModel.geckoCheatsDownloadedEvent.observe(activity) { cheatsAdded: Int? ->
-            cheatsAdded?.let {
+        viewModel.geckoCheatsDownloadedEvent.observe(activity) { cheatsAdded: Int ->
                 val positionEnd = itemCount - 2 // Skip "Add Gecko Code" and "Download Gecko Codes"
-                val positionStart = positionEnd - it
-                notifyItemRangeInserted(positionStart, it)
-            }
+                val positionStart = positionEnd - cheatsAdded
+                notifyItemRangeInserted(positionStart, cheatsAdded)
         }
     }
 

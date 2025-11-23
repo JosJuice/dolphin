@@ -87,7 +87,7 @@ class CheatsActivity : AppCompatActivity(), PanelSlideListener {
         }
         onSelectedCheatChanged(viewModel.selectedCheat.value)
 
-        viewModel.openDetailsViewEvent.observe(this) { open: Boolean -> openDetailsView(open) }
+        viewModel.openDetailsViewEvent.observe(this) { binding.slidingPaneLayout.open() }
 
         setSupportActionBar(binding.toolbarCheats)
         supportActionBar!!.setDisplayHomeAsUpEnabled(true)
@@ -152,10 +152,6 @@ class CheatsActivity : AppCompatActivity(), PanelSlideListener {
     override fun onSupportNavigateUp(): Boolean {
         onBackPressed()
         return true
-    }
-
-    private fun openDetailsView(open: Boolean) {
-        if (open) binding.slidingPaneLayout.open()
     }
 
     fun loadGameSpecificSettings(): Settings {
