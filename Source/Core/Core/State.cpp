@@ -199,6 +199,17 @@ static void DoState(Core::System& system, PointerWrap& p)
 #endif  // USE_RETRO_ACHIEVEMENTS
 }
 
+static bool CheckIfStateSaveIsAllowed(Core::System& system)
+{
+  if (system.IsTriforce())
+  {
+    OSD::AddMessage("State saving is not yet supported for Triforce");
+    return false;
+  }
+
+  return true;
+}
+
 static bool CheckIfStateLoadIsAllowed(Core::System& system)
 {
   if (!Core::IsRunningOrStarting(system))
@@ -213,6 +224,12 @@ static bool CheckIfStateLoadIsAllowed(Core::System& system)
   if (AchievementManager::GetInstance().IsHardcoreModeActive())
   {
     OSD::AddMessage("Loading savestates is disabled in RetroAchievements hardcore mode");
+    return false;
+  }
+
+  if (system.IsTriforce())
+  {
+    OSD::AddMessage("State loading is not yet supported for Triforce");
     return false;
   }
 
@@ -495,6 +512,9 @@ static void SaveAsFromCore(Core::System& system, std::string filename)
 
 void SaveAs(Core::System& system, std::string filename)
 {
+  if (!CheckIfStateSaveIsAllowed(system))
+    return;
+
   Core::RunOnCPUThread(
       system, [&system, filename = std::move(filename), lock = GetStateSaveTaskLock()]() mutable {
         SaveAsFromCore(system, std::move(filename));
@@ -932,6 +952,9 @@ void LoadLastSaved(Core::System& system, int i)
 
 void SaveFirstSaved(Core::System& system)
 {
+  if (!CheckIfStateSaveIsAllowed(system))
+    return;
+
   Core::RunOnCPUThread(system, [&system, lock = GetStateSaveTaskLock()] {
     // Data must reach the filesystem for up to date "UsedSlots".
     s_compress_and_dump_thread.WaitForCompletion();
