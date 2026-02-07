@@ -370,9 +370,9 @@ static inline void PrintMBBuffer(u32 address, u32 length)
 
   for (u32 i = 0; i < length; i += 0x10)
   {
-    INFO_LOG_FMT(AMMEDIABOARD, "GC-AM: {:08x} {:08x} {:08x} {:08x}", memory.Read_U32(address + i),
-                 memory.Read_U32(address + i + 4), memory.Read_U32(address + i + 8),
-                 memory.Read_U32(address + i + 12));
+    DEBUG_LOG_FMT(AMMEDIABOARD, "GC-AM: {:08x} {:08x} {:08x} {:08x}", memory.Read_U32(address + i),
+                  memory.Read_U32(address + i + 4), memory.Read_U32(address + i + 8),
+                  memory.Read_U32(address + i + 12));
   }
 }
 
@@ -641,8 +641,9 @@ static s32 NetDIMMConnect(GuestSocket guest_socket, sockaddr_in* addr, int len)
       }
       else
       {
-        ERROR_LOG_FMT(AMMEDIABOARD, "GC-AM: getsockopt() failed in NetDIMMConnect ({})",
-                      Common::StrNetworkError());
+        ERROR_LOG_FMT(AMMEDIABOARD,
+                      "GC-AM: getsockopt failed in NetDIMMConnect: errno={}, so_error={}", errno,
+                      so_error);
         s_last_error = SOCKET_ERROR;
         ret = SOCKET_ERROR;
       }
@@ -917,11 +918,8 @@ static void AMMBCommandSelect(u32 parameter_offset, u32 network_buffer_base)
   auto* const guest_timeout_ptr =
       GetSafePtr(s_network_command_buffer, network_buffer_base, timeout_offset, sizeof(TimeVal));
 
-  if (nfds > std::size(s_sockets))
-  {
-    ERROR_LOG_FMT(AMMEDIABOARD, "AMMBCommandSelect: Unexpected nfds: {}", nfds);
-    nfds = std::size(s_sockets);
-  }
+  // Games sometimes send 256 (the bit size of GuestFdSet).
+  nfds = std::min<u32>(nfds, std::size(s_sockets));
 
   std::chrono::milliseconds timeout{-1};
   if (guest_timeout_ptr != nullptr)
@@ -957,6 +955,8 @@ static void AMMBCommandSelect(u32 parameter_offset, u32 network_buffer_base)
 
   // TODO: There may be some edge cases where
   // poll's (POLLIN,POLLOUT,POLLPRI) don't map 1:1 with select's (readfds,writefds,exceptfds).
+
+  INFO_LOG_FMT(AMMEDIABOARD, "AMMBCommandSelect: Polling with socket count: {}", pollfds.size());
 
   const int ret = PlatformPoll(pollfds, timeout);
 
@@ -1212,8 +1212,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     {
       if (offset >= range.start && offset < range.end)
       {
-        INFO_LOG_FMT(AMMEDIABOARD, "GC-AM: Read MediaBoard ({:08x},{:08x},{:08x})", offset,
-                     range.base_offset, length);
+        DEBUG_LOG_FMT(AMMEDIABOARD, "GC-AM: Read MediaBoard ({:08x},{:08x},{:08x})", offset,
+                      range.base_offset, length);
         SafeCopyToEmu(memory, address, range.buffer, range.buffer_size, offset - range.base_offset,
                       length);
         PrintMBBuffer(address, length);
@@ -1620,8 +1620,8 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
     {
       if (offset >= range.start && offset < range.end)
       {
-        INFO_LOG_FMT(AMMEDIABOARD, "GC-AM: Write MediaBoard ({:08x},{:08x},{:08x})", offset,
-                     range.base_offset, length);
+        DEBUG_LOG_FMT(AMMEDIABOARD, "GC-AM: Write MediaBoard ({:08x},{:08x},{:08x})", offset,
+                      range.base_offset, length);
         SafeCopyFromEmu(memory, range.buffer, address, range.buffer_size,
                         offset - range.base_offset, length);
         PrintMBBuffer(address, length);
