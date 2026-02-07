@@ -17,15 +17,46 @@
 #endif
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 #include "Common/BitUtils.h"
 #include "Common/CommonFuncs.h"
 #include "Common/Logging/Log.h"
 #include "Common/Random.h"
 #include "Common/StringUtil.h"
+#include "Core/IOS/Network/Socket.h"
 
 namespace Common
 {
+std::string IPAddressToString(IPAddress ip_address)
+{
+  return fmt::format("{}", fmt::join(ip_address, "."));
+}
+
+std::pair<std::optional<IPAddress>, std::optional<u32>>
+StringToIPAddressAndNetwork(std::string_view ip_string)
+{
+  std::pair<std::optional<IPAddress>, std::optional<u32>> result;
+
+  // TODO: inet_addr is ugly and we don't detect an improper string..
+
+  const auto parts = SplitStringIntoArray<2>(ip_string, '/');
+  if (parts.has_value())
+  {
+    result.first = std::bit_cast<Common::IPAddress>(inet_addr(std::string((*parts)[0]).c_str()));
+
+    u32 network_bits = 0;
+    if (FromChars((*parts)[1], network_bits).ec == std::errc{})
+      result.second = network_bits;
+  }
+  else
+  {
+    result.first = std::bit_cast<Common::IPAddress>(inet_addr(std::string(ip_string).c_str()));
+  }
+
+  return result;
+}
+
 MACAddress GenerateMacAddress(const MACConsumer type)
 {
   constexpr std::array<u8, 3> oui_bba{{0x00, 0x09, 0xbf}};

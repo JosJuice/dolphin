@@ -268,6 +268,12 @@ struct NetworkErrorState
 #endif
 };
 
+std::string IPAddressToString(IPAddress ip_address);
+
+// Parses an IP like ""192.168.1.0" or CIDR notation like "192.168.1.0/24".
+std::pair<std::optional<IPAddress>, std::optional<u32>>
+StringToIPAddressAndNetwork(std::string_view ip_string);
+
 MACAddress GenerateMacAddress(MACConsumer type);
 
 std::string MacAddressToString(const MACAddress& mac);
