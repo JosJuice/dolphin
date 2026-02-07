@@ -4,6 +4,8 @@
 #include "Core/HW/DVD/AMMediaboard.h"
 
 #include <algorithm>
+#include <bit>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 
@@ -18,6 +20,7 @@
 
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
+#include "Core/Config/MainSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HLE/HLE.h"
@@ -519,38 +522,90 @@ static GuestSocket NetDIMMAccept(GuestSocket guest_socket, sockaddr* addr, sockl
   return INVALID_GUEST_SOCKET;
 }
 
-static s32 NetDIMMConnect(GuestSocket guest_socket, sockaddr_in* addr, int len)
+std::optional<std::pair<std::string_view, std::string_view>> ParseIPOverride(std::string_view str)
 {
-  // All.Net Connect IP
-  if (addr->sin_addr.s_addr == inet_addr("192.168.150.16"))
+  // Ignore everything after a $. Future proofing to allow for a comment/description string.
+  const auto ip_pair_str = std::string_view{str.begin(), std::ranges::find(str, '$')};
+
+  const auto parts = SplitStringIntoArray<2>(ip_pair_str, '=');
+  if (parts.has_value())
+    return std::make_pair((*parts)[0], (*parts)[1]);
+
+  return std::nullopt;
+}
+
+struct IPAddressOverride
+{
+  Common::IPAddress match_ip;
+  u32 network_prefix_length;
+  Common::IPAddress replacement_ip;
+};
+
+static constexpr auto GetMaskFromNetworkPrefixLength(u32 network_prefix_length)
+{
+  return (network_prefix_length >= 32) ? u32(-1) : htonl(~(u32(-1) >> network_prefix_length));
+}
+
+using IPAddressOverrides = std::vector<IPAddressOverride>;
+static IPAddressOverrides GetIPAddressOverrides()
+{
+  IPAddressOverrides result;
+
+  const auto ip_overrides_str = Config::Get(Config::MAIN_TRIFORCE_IP_OVERRIDES);
+  for (auto&& ip_pair : ip_overrides_str | std::views::split(','))
   {
-    addr->sin_addr.s_addr = inet_addr("127.0.0.1");
+    const auto ip_pair_str = std::string_view{ip_pair};
+    const auto parts = ParseIPOverride(ip_pair_str);
+    if (parts.has_value())
+    {
+      const auto match_ip = Common::StringToIPAddressAndNetwork(parts->first);
+      const auto replacement_ip = Common::StringToIPAddressAndNetwork(parts->second);
+
+      if (match_ip.first && replacement_ip.first)
+      {
+        const auto network_prefix_length = match_ip.second.value_or(32);
+        result.emplace_back(*match_ip.first, network_prefix_length, *replacement_ip.first);
+        continue;
+      }
+
+      ERROR_LOG_FMT(AMMEDIABOARD, "Bad IP pair string: {}", ip_pair_str);
+    }
   }
 
-  // CyCraft Connect IP
-  if (addr->sin_addr.s_addr == inet_addr("192.168.11.111"))
+  return result;
+}
+
+static std::optional<in_addr> GetAdjustedIPAddressFromConfig(in_addr addr)
+{
+  const auto addr_u32 = std::bit_cast<u32>(addr);
+
+  // TODO: We should parse this elsewhere to avoid repeated string manipulations.
+  for (auto [match_ip, network_prefix_length, replacement_ip] : GetIPAddressOverrides())
   {
-    addr->sin_addr.s_addr = inet_addr("127.0.0.1");
+    const u32 mask = GetMaskFromNetworkPrefixLength(network_prefix_length);
+    if (((addr_u32 ^ std::bit_cast<u32>(match_ip)) & mask) == 0)
+      return std::bit_cast<decltype(sockaddr_in::sin_addr)>(replacement_ip);
   }
+  return std::nullopt;
+}
+
+static s32 NetDIMMConnect(GuestSocket guest_socket, sockaddr_in* addr, int len)
+{
+  INFO_LOG_FMT(AMMEDIABOARD, "NetDIMMConnect: IP: {}", inet_ntoa(addr->sin_addr));
 
   // NAMCO Camera ( IPs are: 192.168.29.104-108 )
   if ((addr->sin_addr.s_addr & 0xFFFFFF00) == 0xC0A81D00)
   {
-    addr->sin_addr.s_addr = inet_addr("127.0.0.1");
-
     // BUG: An invalid family value is being used
     addr->sin_family = htons(AF_INET);
   }
 
-  // Key of Avalon Client
-  if (addr->sin_addr.s_addr == inet_addr("192.168.13.1"))
+  const auto adjusted_ip = GetAdjustedIPAddressFromConfig(addr->sin_addr);
+  if (adjusted_ip.has_value())
   {
-    // Unlike the other addresses, this one isn't converted to loopback
-    // because the server and client can't run on the same system.
-    //
-    // NOTE: Due to lack of touch-screen support, it's not in a playable state.
-    // TODO: Make the IP configurable.
-    addr->sin_addr.s_addr = inet_addr("10.0.0.45");
+    addr->sin_addr = *adjusted_ip;
+    INFO_LOG_FMT(AMMEDIABOARD, "NetDIMMConnect: Overriding IP to: {}",
+                 Common::IPAddressToString(std::bit_cast<Common::IPAddress>(addr->sin_addr)));
   }
 
   addr->sin_family = Common::swap16(addr->sin_family);
@@ -1217,11 +1272,19 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         addr.sin_family = Common::swap16(addr.sin_family);
 
         // Triforce titles typically rely on hardcoded IP addresses.
-        // This behavior has been modified to bind to the wildcard address instead.
-        //
-        // addr.sin_addr.s_addr = htonl(addr.sin_addr.s_addr);
+        // Our config allows this to be overriden.
+        const auto override_bind_ip = inet_addr(Config::Get(Config::MAIN_TRIFORCE_BIND_IP).c_str());
 
-        addr.sin_addr.s_addr = INADDR_ANY;
+        // If "BindIP" is not set in the user config, then apply "IPOverrides".
+        const auto adjusted_ip = (override_bind_ip != INADDR_NONE) ?
+                                     std::bit_cast<in_addr>(override_bind_ip) :
+                                     GetAdjustedIPAddressFromConfig(addr.sin_addr);
+        if (adjusted_ip.has_value())
+        {
+          addr.sin_addr = *adjusted_ip;
+          INFO_LOG_FMT(AMMEDIABOARD, "AMMBCommand::Bind: Overriding IP to: {}",
+                       Common::IPAddressToString(std::bit_cast<Common::IPAddress>(addr.sin_addr)));
+        }
 
         const int ret = bind(fd, reinterpret_cast<const sockaddr*>(&addr), len);
         const int err = WSAGetLastError();
