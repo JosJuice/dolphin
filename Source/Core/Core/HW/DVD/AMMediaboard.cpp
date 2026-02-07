@@ -609,10 +609,13 @@ static s32 NetDIMMConnect(GuestSocket guest_socket, sockaddr_in* addr, int len)
 {
   INFO_LOG_FMT(AMMEDIABOARD, "NetDIMMConnect: IP: {}", inet_ntoa(addr->sin_addr));
 
-  // NAMCO Camera ( IPs are: 192.168.29.104-108 )
-  if ((addr->sin_addr.s_addr & 0xFFFFFF00) == 0xC0A81D00)
+  const auto address_family = ntohs(addr->sin_family);
+  if (address_family != AF_INET)
   {
     // BUG: An invalid family value is being used
+    WARN_LOG_FMT(AMMEDIABOARD,
+                 "NetDIMMConnect: Unexpected address family: 0x{:04x} (Forcing AF_INET).",
+                 address_family);
     addr->sin_family = htons(AF_INET);
   }
 
