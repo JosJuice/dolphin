@@ -1328,7 +1328,7 @@ u32 ExecuteCommand(std::array<u32, 3>& dicmd_buf, u32* diimm_buf, u32 address, u
         NOTICE_LOG_FMT(AMMEDIABOARD_NET, "GC-AM: InetAddr( {} )\n", ip_address);
 
         s_media_buffer[1] = s_media_buffer[8];
-        s_media_buffer_32[1] = Common::swap32(ip);
+        s_media_buffer_32[1] = ip;
         break;
       }
       case AMMBCommand::Listen:
