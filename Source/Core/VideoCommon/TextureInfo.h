@@ -13,7 +13,7 @@
 enum class TextureFormat;
 enum class TLUTFormat;
 
-class TextureInfo final
+class TextureInfo
 {
 public:
   static TextureInfo FromStage(u32 stage);
@@ -33,32 +33,32 @@ public:
   };
   NameDetails CalculateTextureName() const;
 
-  bool IsDataValid() const { return m_data_valid; }
+  bool IsDataValid() const;
 
-  const u8* GetData() const { return m_data.data(); }
-  const u8* GetTlutAddress() const { return m_tlut_data.data(); }
+  const u8* GetData() const;
+  const u8* GetTlutAddress() const;
 
-  u32 GetRawAddress() const { return m_address; }
+  u32 GetRawAddress() const;
 
-  bool IsFromTmem() const { return m_from_tmem; }
-  const u8* GetTmemOddAddress() const { return m_tmem_odd.data(); }
+  bool IsFromTmem() const;
+  const u8* GetTmemOddAddress() const;
 
-  TextureFormat GetTextureFormat() const { return m_texture_format; }
-  TLUTFormat GetTlutFormat() const { return m_tlut_format; }
+  TextureFormat GetTextureFormat() const;
+  TLUTFormat GetTlutFormat() const;
 
-  std::optional<u32> GetPaletteSize() const { return m_palette_size; }
-  u32 GetTextureSize() const { return m_texture_size; }
+  std::optional<u32> GetPaletteSize() const;
+  u32 GetTextureSize() const;
 
-  u32 GetBlockWidth() const { return m_block_width; }
-  u32 GetBlockHeight() const { return m_block_height; }
+  u32 GetBlockWidth() const;
+  u32 GetBlockHeight() const;
 
-  u32 GetExpandedWidth() const { return m_expanded_width; }
-  u32 GetExpandedHeight() const { return m_expanded_height; }
+  u32 GetExpandedWidth() const;
+  u32 GetExpandedHeight() const;
 
-  u32 GetRawWidth() const { return m_raw_width; }
-  u32 GetRawHeight() const { return m_raw_height; }
+  u32 GetRawWidth() const;
+  u32 GetRawHeight() const;
 
-  u32 GetStage() const { return m_stage; }
+  u32 GetStage() const;
 
   class MipLevel final
   {
@@ -66,18 +66,18 @@ public:
     MipLevel() = default;
     MipLevel(u32 level, const TextureInfo& parent, std::span<const u8>* data);
 
-    bool IsDataValid() const { return m_data_valid; }
+    bool IsDataValid() const;
 
-    const u8* GetData() const { return m_ptr; }
-    u32 GetTextureSize() const { return m_texture_size; }
+    const u8* GetData() const;
+    u32 GetTextureSize() const;
 
-    u32 GetExpandedWidth() const { return m_expanded_width; }
-    u32 GetExpandedHeight() const { return m_expanded_height; }
+    u32 GetExpandedWidth() const;
+    u32 GetExpandedHeight() const;
 
-    u32 GetRawWidth() const { return m_raw_width; }
-    u32 GetRawHeight() const { return m_raw_height; }
+    u32 GetRawWidth() const;
+    u32 GetRawHeight() const;
 
-    u32 GetLevel() const { return m_level; }
+    u32 GetLevel() const;
 
   private:
     bool m_data_valid = false;
@@ -147,8 +147,8 @@ public:
     MipLevelIterator m_end;
   };
 
-  bool HasMipMaps() const { return m_limited_mip_count != 0; }
-  u32 GetLevelCount() const { return m_limited_mip_count + 1; }
+  bool HasMipMaps() const;
+  u32 GetLevelCount() const;
   MipLevels GetMipMapLevels() const;
   u32 GetFullLevelSize() const;
 
