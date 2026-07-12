@@ -5,8 +5,10 @@ package org.dolphinemu.dolphinemu.features.settings.ui
 import android.os.Bundle
 import android.text.TextUtils
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
-import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
+import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import org.dolphinemu.dolphinemu.utils.Log
 
 class SettingsActivityPresenter(
@@ -63,7 +65,10 @@ class SettingsActivityPresenter(
 
     private fun prepareDolphinDirectoriesIfNeeded() {
         activityView.showLoading()
-        AfterDirectoryInitializationRunner().runWithLifecycle(activity) { loadSettingsUI() }
+        activity.lifecycleScope.launch {
+            DirectoryInitialization.waitUntilInitialized()
+            loadSettingsUI()
+        }
     }
 
     fun clearGameSettings() {

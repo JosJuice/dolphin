@@ -6,13 +6,16 @@ import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.ConfigChangedCallback
 import org.dolphinemu.dolphinemu.model.GameFile
 import org.dolphinemu.dolphinemu.model.GameFileCache
 import org.dolphinemu.dolphinemu.ui.platform.Platform
 import org.dolphinemu.dolphinemu.ui.platform.PlatformTab
-import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
+import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import java.util.Arrays
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -114,13 +117,17 @@ object GameFileCacheManager {
      * if the games are still present in the user's configured folders.
      * If this has already been called, calling it again has no effect.
      */
+    @OptIn(DelicateCoroutinesApi::class)
     @JvmStatic
     fun startLoad() {
         createGameFileCacheIfNeeded()
 
         if (!loadInProgress.value!!) {
             loadInProgress.value = true
-            AfterDirectoryInitializationRunner().runWithoutLifecycle { executor.execute(::load) }
+            GlobalScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                executor.execute(::load)
+            }
         }
     }
 
@@ -130,13 +137,17 @@ object GameFileCacheManager {
      * If loading the game file cache hasn't started or hasn't finished,
      * the execution of this will be postponed until it finishes.
      */
+    @OptIn(DelicateCoroutinesApi::class)
     @JvmStatic
     fun startRescan() {
         createGameFileCacheIfNeeded()
 
         if (!rescanInProgress.value!!) {
             rescanInProgress.value = true
-            AfterDirectoryInitializationRunner().runWithoutLifecycle { executor.execute(::rescan) }
+            GlobalScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                executor.execute(::rescan)
+            }
         }
     }
 

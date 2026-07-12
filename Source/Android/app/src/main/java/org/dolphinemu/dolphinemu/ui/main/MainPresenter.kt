@@ -12,7 +12,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.BuildConfig
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.activities.EmulationActivity
@@ -25,7 +27,6 @@ import org.dolphinemu.dolphinemu.features.netplay.ui.NetplaySetupActivity
 import org.dolphinemu.dolphinemu.fragments.AboutDialogFragment
 import org.dolphinemu.dolphinemu.model.GameFileCache
 import org.dolphinemu.dolphinemu.services.GameFileCacheManager
-import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
 import org.dolphinemu.dolphinemu.utils.BooleanSupplier
 import org.dolphinemu.dolphinemu.utils.ContentHandler
 import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
@@ -149,7 +150,10 @@ class MainPresenter(private val mainView: MainView, private val activity: Fragme
         }
 
         R.id.button_add_directory -> {
-            AfterDirectoryInitializationRunner().runWithLifecycle(activity) { launchFileListActivity() }
+            activity.lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                launchFileListActivity()
+            }
             true
         }
 
@@ -164,28 +168,34 @@ class MainPresenter(private val mainView: MainView, private val activity: Fragme
         }
 
         R.id.menu_online_system_update -> {
-            AfterDirectoryInitializationRunner().runWithLifecycle(activity) { launchOnlineUpdate() }
+            activity.lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                launchOnlineUpdate()
+            }
             true
         }
 
         R.id.menu_install_wad -> {
-            AfterDirectoryInitializationRunner().runWithLifecycle(
-                activity
-            ) { requestWadFile.launch("*/*") }
+            activity.lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                requestWadFile.launch("*/*")
+            }
             true
         }
 
         R.id.menu_import_wii_save -> {
-            AfterDirectoryInitializationRunner().runWithLifecycle(
-                activity
-            ) { requestWiiSaveFile.launch("*/*") }
+            activity.lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                requestWiiSaveFile.launch("*/*")
+            }
             true
         }
 
         R.id.menu_import_nand_backup -> {
-            AfterDirectoryInitializationRunner().runWithLifecycle(
-                activity
-            ) { requestNandBinFile.launch("*/*") }
+            activity.lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                requestNandBinFile.launch("*/*")
+            }
             true
         }
 
@@ -331,7 +341,8 @@ class MainPresenter(private val mainView: MainView, private val activity: Fragme
     }
 
     private fun launchWiiSystemMenu() {
-        AfterDirectoryInitializationRunner().runWithLifecycle(activity) {
+        activity.lifecycleScope.launch {
+            DirectoryInitialization.waitUntilInitialized()
             if (WiiUtils.isSystemMenuInstalled()) {
                 EmulationActivity.launchSystemMenu(activity)
             } else {

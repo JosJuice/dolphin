@@ -13,9 +13,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout.OnRefreshListener
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.tabs.TabLayout
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.adapters.PlatformPagerAdapter
 import org.dolphinemu.dolphinemu.databinding.ActivityMainBinding
@@ -27,7 +29,6 @@ import org.dolphinemu.dolphinemu.fragments.GridOptionDialogFragment
 import org.dolphinemu.dolphinemu.services.GameFileCacheManager
 import org.dolphinemu.dolphinemu.ui.platform.PlatformGamesView
 import org.dolphinemu.dolphinemu.ui.platform.PlatformTab
-import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
 import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import org.dolphinemu.dolphinemu.utils.InsetsHelper
 import org.dolphinemu.dolphinemu.utils.PermissionsHandler
@@ -63,7 +64,8 @@ class MainActivity : AppCompatActivity(), MainView, OnRefreshListener, ThemeProv
 
         // Set up the FAB.
         binding.buttonAddDirectory.setOnClickListener {
-            AfterDirectoryInitializationRunner().runWithLifecycle(this) {
+            lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
                 presenter.launchFileListActivity()
             }
         }
@@ -80,13 +82,17 @@ class MainActivity : AppCompatActivity(), MainView, OnRefreshListener, ThemeProv
         // Stuff in this block only happens when this activity is newly created (i.e. not a rotation)
         if (savedInstanceState == null) {
             StartupHandler.HandleInit(this)
-            AfterDirectoryInitializationRunner().runWithLifecycle(this) {
-                ThemeHelper.setCorrectTheme(this)
+            val activity = this
+            lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                ThemeHelper.setCorrectTheme(activity)
             }
         }
         if (!DirectoryInitialization.isWaitingForWriteAccess(this)) {
-            AfterDirectoryInitializationRunner()
-                .runWithLifecycle(this) { setPlatformTabsAndStartGameFileCacheService() }
+            lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                setPlatformTabsAndStartGameFileCacheService()
+            }
         }
     }
 
@@ -96,8 +102,10 @@ class MainActivity : AppCompatActivity(), MainView, OnRefreshListener, ThemeProv
         super.onResume()
         if (DirectoryInitialization.shouldStart(this)) {
             DirectoryInitialization.start(this)
-            AfterDirectoryInitializationRunner()
-                .runWithLifecycle(this) { setPlatformTabsAndStartGameFileCacheService() }
+            lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                setPlatformTabsAndStartGameFileCacheService()
+            }
         }
 
         presenter.onResume()
@@ -120,15 +128,17 @@ class MainActivity : AppCompatActivity(), MainView, OnRefreshListener, ThemeProv
     }
 
     override fun onPrepareOptionsMenu(menu: Menu): Boolean {
-        AfterDirectoryInitializationRunner().runWithLifecycle(this) {
+        val activity = this
+        lifecycleScope.launch {
+            DirectoryInitialization.waitUntilInitialized()
             if (WiiUtils.isSystemMenuInstalled()) {
                 val resId =
                     if (WiiUtils.isSystemMenuvWii()) R.string.grid_menu_load_vwii_system_menu_installed else R.string.grid_menu_load_wii_system_menu_installed
 
-                // If this callback ends up running after another call to onCreateOptionsMenu,
+                // If this code gets suspended and runs after another call to onCreateOptionsMenu,
                 // we need to use the new Menu passed to the latest call of onCreateOptionsMenu.
                 // Therefore, we use a field here instead of the onPrepareOptionsMenu argument.
-                this.menu.findItem(R.id.menu_load_wii_system_menu).title =
+                activity.menu.findItem(R.id.menu_load_wii_system_menu).title =
                     getString(resId, WiiUtils.getSystemMenuVersion())
             }
         }
@@ -158,8 +168,10 @@ class MainActivity : AppCompatActivity(), MainView, OnRefreshListener, ThemeProv
             }
 
             DirectoryInitialization.start(this)
-            AfterDirectoryInitializationRunner()
-                .runWithLifecycle(this) { setPlatformTabsAndStartGameFileCacheService() }
+            lifecycleScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                setPlatformTabsAndStartGameFileCacheService()
+            }
         }
     }
 

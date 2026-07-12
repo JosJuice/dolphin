@@ -6,10 +6,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.model.GameFile
 import org.dolphinemu.dolphinemu.services.GameFileCacheManager
 import org.dolphinemu.dolphinemu.ui.main.TvMainActivity
-import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
 import org.dolphinemu.dolphinemu.utils.AppLinkHelper
 import org.dolphinemu.dolphinemu.utils.AppLinkHelper.PlayAction
 import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
@@ -19,7 +21,7 @@ import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
  */
 class AppLinkActivity : FragmentActivity() {
     private lateinit var playAction: PlayAction
-    private lateinit var afterDirectoryInitializationRunner: AfterDirectoryInitializationRunner
+    private lateinit var tryPlayJob: Job
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,11 +51,14 @@ class AppLinkActivity : FragmentActivity() {
      * Need to init these since they usually occur in the main activity.
      */
     private fun initResources() {
-        afterDirectoryInitializationRunner = AfterDirectoryInitializationRunner()
-        afterDirectoryInitializationRunner.runWithLifecycle(this) { tryPlay(playAction) }
+        tryPlayJob = lifecycleScope.launch {
+            DirectoryInitialization.waitUntilInitialized()
+            tryPlay(playAction)
+        }
 
         GameFileCacheManager.isLoading().observe(this) { isLoading: Boolean? ->
             if (!isLoading!! && DirectoryInitialization.areDolphinDirectoriesReady()) {
+                tryPlayJob.cancel()
                 tryPlay(playAction)
             }
         }
@@ -94,7 +99,6 @@ class AppLinkActivity : FragmentActivity() {
     }
 
     private fun startGame(game: GameFile) {
-        afterDirectoryInitializationRunner.cancel()
         EmulationActivity.launch(this, GameFileCacheManager.findSecondDiscAndGetPaths(game), false)
     }
 

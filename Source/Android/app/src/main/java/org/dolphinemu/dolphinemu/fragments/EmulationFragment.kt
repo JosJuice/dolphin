@@ -23,7 +23,7 @@ import org.dolphinemu.dolphinemu.features.netplay.NetplayManager
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.overlay.InputOverlay
-import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
+import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import org.dolphinemu.dolphinemu.utils.Log
 import java.io.File
 
@@ -107,7 +107,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
             inputOverlay?.refreshControls()
         }
 
-        AfterDirectoryInitializationRunner().runWithLifecycle(this) {
+        lifecycleScope.launch {
+            DirectoryInitialization.waitUntilInitialized()
             run(emulationActivity!!.isActivityRecreated)
         }
     }

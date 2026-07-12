@@ -10,6 +10,9 @@ import android.os.Bundle
 import android.text.TextUtils
 import androidx.fragment.app.FragmentActivity
 import androidx.preference.PreferenceManager
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.NativeLibrary
 import org.dolphinemu.dolphinemu.activities.EmulationActivity
 import java.time.Instant
@@ -102,6 +105,7 @@ object StartupHandler {
      * if it's a start after a long period of the app not being used (during which time the process
      * may be restarted for power/memory saving reasons, although app state persists).
      */
+    @OptIn(DelicateCoroutinesApi::class)
     @JvmStatic
     fun reportStartToAnalytics(context: Context, firstStart: Boolean) {
         val sessionTimestamp = getSessionTimestamp(context)
@@ -110,9 +114,10 @@ object StartupHandler {
             // Just in case: ensure start event won't be accidentally sent too often.
             updateSessionTimestamp(context)
 
-            AfterDirectoryInitializationRunner().runWithoutLifecycle(
-                NativeLibrary::ReportStartToAnalytics
-            )
+            GlobalScope.launch {
+                DirectoryInitialization.waitUntilInitialized()
+                NativeLibrary.ReportStartToAnalytics()
+            }
         }
     }
 }
