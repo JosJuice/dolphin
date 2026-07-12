@@ -5,6 +5,8 @@ package org.dolphinemu.dolphinemu.utils
 import android.os.Build
 import androidx.annotation.Keep
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.DolphinApplication
 import org.dolphinemu.dolphinemu.dialogs.AnalyticsDialog
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
@@ -18,7 +20,8 @@ object Analytics {
 
     @JvmStatic
     fun checkAnalyticsInit(activity: FragmentActivity) {
-        AfterDirectoryInitializationRunner().runWithLifecycle(activity) {
+        activity.lifecycleScope.launch {
+            DirectoryInitialization.waitUntilInitialized()
             if (!BooleanSetting.MAIN_ANALYTICS_PERMISSION_ASKED.boolean) {
                 AnalyticsDialog().show(activity.supportFragmentManager, AnalyticsDialog.TAG)
             }

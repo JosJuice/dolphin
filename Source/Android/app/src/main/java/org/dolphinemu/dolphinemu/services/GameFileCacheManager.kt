@@ -6,13 +6,15 @@ import android.os.Handler
 import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.ConfigChangedCallback
 import org.dolphinemu.dolphinemu.model.GameFile
 import org.dolphinemu.dolphinemu.model.GameFileCache
 import org.dolphinemu.dolphinemu.ui.platform.Platform
 import org.dolphinemu.dolphinemu.ui.platform.PlatformTab
-import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
+import org.dolphinemu.dolphinemu.utils.DirectoryInitialization
 import java.util.Arrays
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -120,7 +122,10 @@ object GameFileCacheManager {
 
         if (!loadInProgress.value!!) {
             loadInProgress.value = true
-            AfterDirectoryInitializationRunner().runWithoutLifecycle { executor.execute(::load) }
+            MainScope().launch {
+                DirectoryInitialization.waitUntilInitialized()
+                executor.execute(::load)
+            }
         }
     }
 
@@ -136,7 +141,10 @@ object GameFileCacheManager {
 
         if (!rescanInProgress.value!!) {
             rescanInProgress.value = true
-            AfterDirectoryInitializationRunner().runWithoutLifecycle { executor.execute(::rescan) }
+            MainScope().launch {
+                DirectoryInitialization.waitUntilInitialized()
+                executor.execute(::rescan)
+            }
         }
     }
 

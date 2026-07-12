@@ -10,6 +10,8 @@ import android.os.Bundle
 import android.text.TextUtils
 import androidx.fragment.app.FragmentActivity
 import androidx.preference.PreferenceManager
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 import org.dolphinemu.dolphinemu.NativeLibrary
 import org.dolphinemu.dolphinemu.activities.EmulationActivity
 import java.time.Instant
@@ -110,9 +112,10 @@ object StartupHandler {
             // Just in case: ensure start event won't be accidentally sent too often.
             updateSessionTimestamp(context)
 
-            AfterDirectoryInitializationRunner().runWithoutLifecycle(
-                NativeLibrary::ReportStartToAnalytics
-            )
+            MainScope().launch {
+                DirectoryInitialization.waitUntilInitialized()
+                NativeLibrary.ReportStartToAnalytics()
+            }
         }
     }
 }

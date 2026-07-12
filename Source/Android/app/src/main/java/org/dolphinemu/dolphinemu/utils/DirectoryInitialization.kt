@@ -12,9 +12,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.dolphinemu.dolphinemu.NativeLibrary
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
@@ -25,6 +24,8 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import kotlin.concurrent.thread
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
 import kotlin.system.exitProcess
 
 /**
@@ -36,10 +37,12 @@ import kotlin.system.exitProcess
  * - Running the native code's init steps (which include things like populating the User directory)
  */
 object DirectoryInitialization {
-    private val directoryState = MutableLiveData(DirectoryInitializationState.NOT_YET_INITIALIZED)
-
+    @Volatile
+    private var directoryState = DirectoryInitializationState.NOT_YET_INITIALIZED
     @Volatile
     private var areDirectoriesAvailable = false
+
+    private val continuations = ArrayList<Continuation<Unit>>()
 
     private lateinit var userPath: String
     private lateinit var driverPath: String
@@ -51,18 +54,18 @@ object DirectoryInitialization {
 
     @JvmStatic
     fun start(context: Context) {
-        if (directoryState.value != DirectoryInitializationState.NOT_YET_INITIALIZED) {
+        if (directoryState != DirectoryInitializationState.NOT_YET_INITIALIZED) {
             return
         }
 
-        directoryState.value = DirectoryInitializationState.INITIALIZING
+        directoryState = DirectoryInitializationState.INITIALIZING
 
         // Can take a few seconds to run, so don't block UI thread.
         thread { init(context) }
     }
 
     private fun init(context: Context) {
-        if (directoryState.value == DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED) {
+        if (directoryState == DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED) {
             return
         }
 
@@ -82,7 +85,11 @@ object DirectoryInitialization {
 
         checkThemeSettings(context)
 
-        directoryState.postValue(DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED)
+        synchronized(continuations) {
+            directoryState = DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED
+            continuations.forEach { cont -> cont.resume(Unit) }
+            continuations.clear()
+        }
     }
 
     private fun getLegacyUserDirectoryPath(): File? {
@@ -178,19 +185,33 @@ object DirectoryInitialization {
 
     @JvmStatic
     fun shouldStart(context: Context): Boolean {
-        return getDolphinDirectoriesState().value == DirectoryInitializationState.NOT_YET_INITIALIZED && !isWaitingForWriteAccess(
+        return directoryState == DirectoryInitializationState.NOT_YET_INITIALIZED && !isWaitingForWriteAccess(
             context
         )
     }
 
     @JvmStatic
     fun areDolphinDirectoriesReady(): Boolean {
-        return directoryState.value == DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED
+        return directoryState == DirectoryInitializationState.DOLPHIN_DIRECTORIES_INITIALIZED
     }
 
-    @JvmStatic
-    fun getDolphinDirectoriesState(): LiveData<DirectoryInitializationState> {
-        return directoryState
+    suspend fun waitUntilInitialized() {
+        if (!areDolphinDirectoriesReady()) {
+            suspendCancellableCoroutine { cont ->
+                synchronized(continuations) {
+                    if (areDolphinDirectoriesReady()) {
+                        cont.resume(Unit)
+                    } else {
+                        continuations.add(cont)
+                        cont.invokeOnCancellation {
+                            synchronized(continuations) {
+                                continuations.remove(cont)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @JvmStatic
@@ -331,7 +352,7 @@ object DirectoryInitialization {
     @JvmStatic
     fun isWaitingForWriteAccess(context: Context): Boolean {
         // This first check is only for performance, not correctness
-        if (directoryState.value != DirectoryInitializationState.NOT_YET_INITIALIZED) {
+        if (directoryState != DirectoryInitializationState.NOT_YET_INITIALIZED) {
             return false
         }
 
