@@ -4,12 +4,15 @@
 #include "VideoCommon/TextureDecoder.h"
 
 #include <array>
+#include <bit>
 
+#include <arm_acle.h>
 #include <arm_neon.h>
 
 #include "Common/CommonTypes.h"
 #include "Common/Inline.h"
 #include "Common/Swap.h"
+#include "VideoCommon/TextureDecoder_Util.h"
 
 template <typename T>
 struct RGBA
@@ -140,16 +143,12 @@ static DOLPHIN_FORCE_INLINE void TexDecoder_DecodeImpl_IA8(u32* dst, const u8* s
   }
 }
 
-static DOLPHIN_FORCE_INLINE RGBAx8 Decode_RGB565(uint16x8_t rgb565, uint16x8_t rgb565_byteswapped)
+static DOLPHIN_FORCE_INLINE RGBAx8 Decode_RGB565(uint16x8_t rgb565)
 {
-  // rgb565 contains gggbbbbb rrrrrggg, rgb565_byteswapped contains rrrrrggg gggbbbbb.
-  //
-  // We're assuming that rgb565_byteswapped is derived from rgb565 and that reading from rgb565
-  // therefore leads to a shorter critical path than reading from rgb565. If it wasn't for that,
-  // this function would only need rgb565_byteswapped as a parameter.
+  // rgb565 contains gggbbbbb rrrrrggg, i.e. the endianness is wrong.
   uint8x8_t r5 = vmovn_u16(rgb565);
   uint8x8_t r8 = vsri_n_u8(r5, r5, 5);
-  uint8x8_t g6 = vshrn_n_u16(rgb565_byteswapped, 3);
+  uint8x8_t g6 = vshrn_n_u16(vrev16q_u8(rgb565), 3);
   uint8x8_t g8 = vsri_n_u8(g6, g6, 6);
   uint8x8_t b5 = vshrn_n_u16(rgb565, 5);
   uint8x8_t b8 = vsri_n_u8(b5, b5, 5);
@@ -408,16 +407,52 @@ static DOLPHIN_FORCE_INLINE void TexDecoder_DecodeImpl_CMPR(u32* dst, const u8* 
   {
     for (int x = 0, yStep = (y / 8) * Wsteps8; x < width; x += 8, yStep++)
     {
-      // Load four blocks at once
+      // Load four blocks at once, into both FPRs and GPRs. We could do all the work using FPRs,
+      // but doing some of the work using GPRs lets us offload the FPR units.
 
       const u32* src2 = reinterpret_cast<const u32*>(src + 32 * yStep);
       uint32x4x2_t values = vld2q_u32(src2);
       uint16x8_t rgb565 = vreinterpretq_u16_u32(values.val[0]);
 
+      const volatile u64* src3 = reinterpret_cast<const u64*>(src + 32 * yStep);
+      DXTBlock block_0 = std::bit_cast<DXTBlock>(src3[0]);
+      DXTBlock block_1 = std::bit_cast<DXTBlock>(src3[1]);
+      DXTBlock block_2 = std::bit_cast<DXTBlock>(src3[2]);
+      DXTBlock block_3 = std::bit_cast<DXTBlock>(src3[3]);
+
+      // Compare colors 0 and 1. Each compare is intended to compile to a four-instruction sequence:
+      //
+      // REV16 \
+      //        -- CMP -- CSEL
+      // REV32 /
+      //
+      // REV16 not only swaps the two lower bytes with each other, but also swaps the two higher
+      // bytes with each other. So both the result of REV32 and the result of REV16 contain
+      // byteswapped copies of both color 0 and color 1, but the REV32 result has color 0 in the two
+      // most significant bytes and color 1 in the two least significant bytes, and the REV16 result
+      // has them the other way around. With this, we can avoid doing any shifting/masking/UBFXing.
+
+      // Tricking clang into not vectorizing the code below
+      asm("" ::"r"(block_0), "r"(block_1), "r"(block_2), "r"(block_3));
+
+      u32 block_0_colors;
+      std::memcpy(&block_0_colors, &block_0, sizeof(u32));
+      u64 mask_0 = __rev(block_0_colors) > __rev16(block_0_colors) ? 0x000000000000FFFF : 0;
+      u32 block_1_colors;
+      std::memcpy(&block_1_colors, &block_1, sizeof(u32));
+      u64 mask_1 = __rev(block_1_colors) > __rev16(block_1_colors) ? 0x00000000FFFF0000 : 0;
+      u32 block_2_colors;
+      std::memcpy(&block_2_colors, &block_2, sizeof(u32));
+      u64 mask_2 = __rev(block_2_colors) > __rev16(block_2_colors) ? 0x0000FFFF00000000 : 0;
+      u32 block_3_colors;
+      std::memcpy(&block_3_colors, &block_3, sizeof(u32));
+      u64 mask_3 = __rev(block_3_colors) > __rev16(block_3_colors) ? 0xFFFF000000000000 : 0;
+
+      uint16x4_t color_0_is_bigger = vdup_n_u64((mask_0 | mask_1) | (mask_2 | mask_3));
+
       // Unpack colors 0 and 1
 
-      uint16x8_t rgb565_byteswapped = vrev16q_u8(rgb565);
-      RGBAx8 color_0_1 = Decode_RGB565(rgb565, rgb565_byteswapped);
+      RGBAx8 color_0_1 = Decode_RGB565(rgb565);
 
       // Calculate colors 2 and 3
 
@@ -449,10 +484,6 @@ static DOLPHIN_FORCE_INLINE void TexDecoder_DecodeImpl_CMPR(u32* dst, const u8* 
       uint8x8_t second_case_g_2_3 = vzip1_u8(second_case_g_2, second_case_g_2);
       uint8x8_t second_case_b_2_3 = vzip1_u8(second_case_b_2, second_case_b_2);
 
-      uint16x4_t rgb565_0 = vget_low_u16(vuzp1q_u16(rgb565_byteswapped, vdupq_n_u16(0)));
-      uint16x4_t rgb565_1 = vget_low_u16(vuzp2q_u16(rgb565_byteswapped, vdupq_n_u16(0)));
-      uint16x4_t color_0_is_bigger = vcgt_u16(rgb565_0, rgb565_1);
-
       uint8x8_t r_2_3 = vbsl_u8(color_0_is_bigger, first_case_r_2_3, second_case_r_2_3);
       uint8x8_t g_2_3 = vbsl_u8(color_0_is_bigger, first_case_g_2_3, second_case_g_2_3);
       uint8x8_t b_2_3 = vbsl_u8(color_0_is_bigger, first_case_b_2_3, second_case_b_2_3);
@@ -473,8 +504,7 @@ static DOLPHIN_FORCE_INLINE void TexDecoder_DecodeImpl_CMPR(u32* dst, const u8* 
           zip_colors(color_0_1.a, a_2_3),
       };
 
-      // Unpack the indices so each one takes up one byte. We could do this entirely using SIMD,
-      // but doing it using GPR units lets us offload the already busy FPR units.
+      // Unpack the indices so each one takes up one byte.
       //
       // We rearrange the lines so every line from the first block is next to a line from the second
       // block, and every line from the third block is next to a line from the fourth block.
@@ -482,23 +512,16 @@ static DOLPHIN_FORCE_INLINE void TexDecoder_DecodeImpl_CMPR(u32* dst, const u8* 
       //
       // TODO: vluti2q_laneq_u8 might be faster, but it requires an optional extension
 
-      u32 first_block_indices = src2[1];
-      u32 second_block_indices = src2[3];
       for (size_t i = 0; i < 4; ++i)
       {
-        unpacked_indices[i * 2 + 0] = unpack_2bit_table[(first_block_indices >> i * 8) & 0xFF];
-        unpacked_indices[i * 2 + 1] =
-            unpack_2bit_table[(second_block_indices >> i * 8) & 0xFF] | 0x04040404;
+        unpacked_indices[i * 2 + 0] = unpack_2bit_table[block_0.lines[i]];
+        unpacked_indices[i * 2 + 1] = unpack_2bit_table[block_1.lines[i]] | 0x04040404;
       }
 
-      u32 third_block_indices = src2[5];
-      u32 fourth_block_indices = src2[7];
       for (size_t i = 0; i < 4; ++i)
       {
-        unpacked_indices[i * 2 + 8] =
-            unpack_2bit_table[(third_block_indices >> i * 8) & 0xFF] | 0x08080808;
-        unpacked_indices[i * 2 + 9] =
-            unpack_2bit_table[(fourth_block_indices >> i * 8) & 0xFF] | 0x0C0C0C0C;
+        unpacked_indices[i * 2 + 8] = unpack_2bit_table[block_2.lines[i]] | 0x08080808;
+        unpacked_indices[i * 2 + 9] = unpack_2bit_table[block_3.lines[i]] | 0x0C0C0C0C;
       }
 
       // Finally, do the table lookup and store the result
